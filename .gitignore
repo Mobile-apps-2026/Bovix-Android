@@ -1,0 +1,44 @@
+# ==========================================
+# Android Studio / IntelliJ
+# ==========================================
+*.iml
+.idea/
+.gradle/
+.kotlin/
+
+# Local config (rutas absolutas del SDK)
+local.properties
+
+# ==========================================
+# Build outputs
+# ==========================================
+/build
+**/build/
+/captures
+.externalNativeBuild
+.cxx
+*.apk
+*.aab
+
+# ==========================================
+# Sensitive / secrets
+# ==========================================
+# Keystores de firma — NUNCA subir
+*.jks
+*.keystore
+keystore.properties
+
+# Servicios Google (Firebase, etc.)
+google-services.json
+
+# ==========================================
+# Sistema operativo
+# ==========================================
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# Editores / herramientas locales
+# ==========================================
+.claude/
+.vscode/
