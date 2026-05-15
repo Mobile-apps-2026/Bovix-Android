@@ -27,6 +27,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import pe.edu.upc.bovix.auth.presentation.login.LoginScreen
 import pe.edu.upc.bovix.cattle.presentation.CattleScreen
+import pe.edu.upc.bovix.health.presentation.HealthScreen
 import pe.edu.upc.bovix.home.presentation.HomeScreen
 import pe.edu.upc.bovix.ui.theme.BorderSoft
 import pe.edu.upc.bovix.ui.theme.CardWhite
@@ -87,7 +88,7 @@ private fun MainShell() {
         ) {
             composable(BottomTab.HOME.route) { HomeScreen() }
             composable(BottomTab.CATTLE.route) { CattleScreen() }
-            composable(BottomTab.HEALTH.route) { ComingSoonScreen("Salud") }
+            composable(BottomTab.HEALTH.route) { HealthScreen() }
             composable(BottomTab.FEED.route) { ComingSoonScreen("Alimentación") }
         }
     }
