@@ -39,5 +39,7 @@ object DatabaseModule {
 
     @Provides
     fun provideHealthDao(db: BovixDatabase): HealthDao = db.healthDao()
+
+    @Provides
     fun provideFeedingDao(db: BovixDatabase): FeedingDao = db.feedingDao()
 }

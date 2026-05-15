@@ -23,7 +23,7 @@ import pe.edu.upc.bovix.home.data.local.HomeStatsEntity
         AnimalEntity::class,
         VetAppointmentEntity::class,
         PendingVaccinationEntity::class,
-        ClinicalEntryEntity::class
+        ClinicalEntryEntity::class,
         FeedingPlanEntity::class,
         FeedingComponentEntity::class
     ],
