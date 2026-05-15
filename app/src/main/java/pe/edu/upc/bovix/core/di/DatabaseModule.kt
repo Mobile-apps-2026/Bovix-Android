@@ -11,6 +11,7 @@ import pe.edu.upc.bovix.core.database.BovixDatabase
 import pe.edu.upc.bovix.auth.data.local.UserDao
 import pe.edu.upc.bovix.cattle.data.local.AnimalDao
 import pe.edu.upc.bovix.health.data.local.HealthDao
+import pe.edu.upc.bovix.feed.data.local.FeedingDao
 import pe.edu.upc.bovix.home.data.local.HomeStatsDao
 import javax.inject.Singleton
 
@@ -38,4 +39,5 @@ object DatabaseModule {
 
     @Provides
     fun provideHealthDao(db: BovixDatabase): HealthDao = db.healthDao()
+    fun provideFeedingDao(db: BovixDatabase): FeedingDao = db.feedingDao()
 }
