@@ -23,13 +23,10 @@ class CattleRepositoryImpl @Inject constructor(
     override fun getAnimals(): Flow<Resource<List<Animal>>> = flow {
         emit(Resource.Loading)
 
-        // 1) Cache local primero (offline-first)
         val cached = dao.getAll()
-        if (cached.isNotEmpty()) {
-            emit(Resource.Success(cached.map { it.toDomain() }))
-        }
+        if (cached.isNotEmpty()) emit(Resource.Success(cached.map { it.toDomain() }))
 
-        // 2) Refrescar desde red (con fallback a datos demo)
+        // Refresca desde la red; si falla y ya había cache, el usuario no se entera
         try {
             val remote = fetchRemoteOrFallback()
             dao.upsertAll(remote.map { it.toEntity() })
@@ -41,10 +38,7 @@ class CattleRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * MODO DEMO: mientras no haya backend, devuelve datos del mockup.
-     * Reemplazar por `api.getAnimals()` cuando el endpoint esté listo.
-     */
+    // Sin backend usa datos de demo; reemplazar por api.getAnimals() cuando esté listo.
     private suspend fun fetchRemoteOrFallback(): List<AnimalDto> = try {
         api.getAnimals()
     } catch (_: Throwable) {

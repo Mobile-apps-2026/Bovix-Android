@@ -23,9 +23,7 @@ class AuthRepositoryImpl @Inject constructor(
     override fun login(email: String, password: String): Flow<Resource<User>> = flow {
         emit(Resource.Loading)
         try {
-            // === MODO DEMO / SIN BACKEND ===
-            // Mientras no haya servidor, simulamos un login válido contra credenciales fijas.
-            // Cuando exista el backend, eliminar este bloque y dejar solo la llamada `api.login(...)`.
+            // Credenciales fijas de demo; quitar este bloque cuando el backend esté disponible.
             if (email.equals("juan@ejemplo.com", ignoreCase = true) && password == "123456") {
                 val dto = pe.edu.upc.bovix.auth.data.remote.dto.LoginResponseDto(
                     id = "u-001",

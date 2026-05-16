@@ -50,7 +50,7 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Logo
+            // Ícono de la app
             Box(
                 modifier = Modifier
                     .size(72.dp)
@@ -79,7 +79,7 @@ fun LoginScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            // Tarjeta del formulario
+            // Formulario de login
             Surface(
                 color = Color.White.copy(alpha = 0.09f),
                 shape = RoundedCornerShape(16.dp),

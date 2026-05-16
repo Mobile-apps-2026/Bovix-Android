@@ -38,7 +38,7 @@ fun CattleScreen(
 
     Column(modifier = Modifier.fillMaxSize().background(BgPrimary)) {
 
-        // === Header ===
+        // Header
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -59,7 +59,7 @@ fun CattleScreen(
             }
         }
 
-        // === Search ===
+        // Buscador
         Surface(color = CardWhite, modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
@@ -85,7 +85,7 @@ fun CattleScreen(
             }
         }
 
-        // === Filtros por lote ===
+        // Chips de filtro por lote
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
@@ -113,7 +113,7 @@ fun CattleScreen(
             }
         }
 
-        // === Lista ===
+        // Lista de animales
         when {
             state.isLoading && state.animals.isEmpty() -> Box(
                 modifier = Modifier.fillMaxSize(),
@@ -162,7 +162,7 @@ private fun AnimalCard(animal: Animal) {
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(12.dp)
         ) {
-            // Avatar
+            // Ícono del animal
             Box(
                 modifier = Modifier
                     .size(44.dp)

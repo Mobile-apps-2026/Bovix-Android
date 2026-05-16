@@ -58,7 +58,7 @@ private fun HomeContent(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // === Header ===
+        // Header
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -102,7 +102,7 @@ private fun HomeContent(
             }
         }
 
-        // === Stats grid (overlap negativo) ===
+        // Grid de stats, con offset negativo para solaparse con el header
         Column(modifier = Modifier
             .offset(y = (-20).dp)
             .padding(horizontal = 12.dp)
@@ -123,13 +123,13 @@ private fun HomeContent(
                 StatCard("Alertas", stats.alerts.toString(), Icons.Default.Notifications, Danger, Modifier.weight(1f))
             }
 
-            // === Alerta ===
+            // Alerta activa (si la hay)
             alert?.let {
                 Spacer(Modifier.height(12.dp))
                 AlertCard(it)
             }
 
-            // === Actividad reciente ===
+            // Actividad reciente
             Spacer(Modifier.height(16.dp))
             Text(
                 text = "Actividad reciente",

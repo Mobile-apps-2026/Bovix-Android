@@ -58,7 +58,7 @@ private fun FeedingContent(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // === Header ===
+        // Header
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -72,7 +72,7 @@ private fun FeedingContent(
             )
         }
 
-        // === Filtros por lote ===
+        // Tabs de lote
         Surface(
             color = CardWhite,
             modifier = Modifier.fillMaxWidth()
@@ -105,10 +105,10 @@ private fun FeedingContent(
             }
         }
 
-        // === Card resumen ración ===
+        // Resumen de la ración diaria
         RationSummaryCard(plan)
 
-        // === Composición del plan ===
+        // Barras de composición
         Text(
             text = "Composición del plan",
             style = MaterialTheme.typography.titleMedium,
@@ -119,7 +119,7 @@ private fun FeedingContent(
             plan.components.forEach { ComponentBar(it); Spacer(Modifier.height(10.dp)) }
         }
 
-        // === Botón editar ===
+        // Botón de edición
         Button(
             onClick = { /* TODO: navegar a editar plan */ },
             colors = ButtonDefaults.buttonColors(

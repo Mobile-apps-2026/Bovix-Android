@@ -24,11 +24,9 @@ class FeedingRepositoryImpl @Inject constructor(
     override fun getFeedingPlans(): Flow<Resource<List<FeedingPlan>>> = flow {
         emit(Resource.Loading)
 
-        // 1) Cache local (offline-first)
         val cached = loadFromCache()
         if (cached.isNotEmpty()) emit(Resource.Success(cached))
 
-        // 2) Refrescar desde la red (con fallback demo)
         try {
             val remote = fetchRemoteOrFallback()
 
@@ -56,7 +54,7 @@ class FeedingRepositoryImpl @Inject constructor(
         }
     }
 
-    /* dejar api.getFeedingPlans() cuando se necesite conectar al api */
+    // Sin backend usa datos de demo; cambiar por api.getFeedingPlans() cuando esté disponible.
     private suspend fun fetchRemoteOrFallback(): List<FeedingPlanDto> = try {
         api.getFeedingPlans()
     } catch (_: Throwable) {

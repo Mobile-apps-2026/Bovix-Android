@@ -26,17 +26,14 @@ class HealthRepositoryImpl @Inject constructor(
     override fun getHealthSummary(): Flow<Resource<HealthSummary>> = flow {
         emit(Resource.Loading)
 
-        // 1) Cache (offline-first)
         val cachedSummary = buildCachedSummary()
         if (cachedSummary.hasContent()) emit(Resource.Success(cachedSummary))
 
-        // 2) Red con fallback a demo
         try {
             val appointment = fetchAppointmentOrFallback()
             val pending = fetchPendingOrFallback()
             val history = fetchHistoryOrFallback()
 
-            // cachear
             dao.clearAppointments()
             appointment?.let { dao.upsertAppointment(it.toEntity()) }
             dao.clearPendingVaccinations()
@@ -70,10 +67,7 @@ class HealthRepositoryImpl @Inject constructor(
     private fun HealthSummary.hasContent(): Boolean =
         nextAppointment != null || pendingVaccinations.isNotEmpty() || clinicalHistory.isNotEmpty()
 
-    /* ============================================================
-     * MODO DEMO: datos del mockup mientras no haya backend real.
-     * Reemplazar por las llamadas a `api.*()` cuando esté listo.
-     * ============================================================ */
+    // Cada función intenta el endpoint real; si falla vuelve a datos de demo.
     private suspend fun fetchAppointmentOrFallback(): AppointmentDto? = try {
         api.getNextAppointment()
     } catch (_: Throwable) {

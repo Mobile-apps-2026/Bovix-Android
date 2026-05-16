@@ -40,9 +40,6 @@ object Routes {
     const val MAIN = "main"
 }
 
-/**
- * Pestañas de la bottom bar — solo activas dentro del shell "main".
- */
 enum class BottomTab(val route: String, val label: String, val icon: ImageVector) {
     HOME("tab_home", "Inicio", Icons.Default.Home),
     CATTLE("tab_cattle", "Ganado", Icons.Default.Eco),
@@ -50,9 +47,6 @@ enum class BottomTab(val route: String, val label: String, val icon: ImageVector
     FEED("tab_feed", "Alimento", Icons.Default.Restaurant)
 }
 
-/* =====================================================================
- * Root NavGraph: gestiona Login -> Shell principal
- * ===================================================================== */
 @Composable
 fun BovixNavGraph() {
     val rootNav = rememberNavController()
@@ -72,9 +66,6 @@ fun BovixNavGraph() {
     }
 }
 
-/* =====================================================================
- * Shell principal con Bottom Navigation Bar + NavHost anidado
- * ===================================================================== */
 @Composable
 private fun MainShell() {
     val tabNav = rememberNavController()

@@ -57,7 +57,7 @@ private fun HealthContent(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // === Header ===
+        // Header
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -78,10 +78,10 @@ private fun HealthContent(
             }
         }
 
-        // === Próxima cita ===
+        // Próxima cita
         appointment?.let { NextAppointmentCard(it) }
 
-        // === Vacunación pendiente ===
+        // Vacunaciones pendientes
         if (pending.isNotEmpty()) {
             SectionHeader("Vacunación pendiente")
             Column(modifier = Modifier.padding(horizontal = 12.dp)) {
@@ -89,7 +89,7 @@ private fun HealthContent(
             }
         }
 
-        // === Historial clínico ===
+        // Historial clínico
         if (history.isNotEmpty()) {
             SectionHeader("Historial clínico")
             ClinicalHistoryCard(history)

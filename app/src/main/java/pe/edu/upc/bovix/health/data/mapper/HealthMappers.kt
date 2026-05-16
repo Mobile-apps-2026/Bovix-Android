@@ -14,7 +14,7 @@ import pe.edu.upc.bovix.health.domain.model.VetAppointment
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-/* ========== DTO -> Domain ========== */
+// DTO -> Domain
 
 fun AppointmentDto.toDomain(): VetAppointment = VetAppointment(
     id = id,
@@ -39,7 +39,7 @@ fun ClinicalRecordDto.toDomain(): ClinicalEntry = ClinicalEntry(
     severity = parseSeverity(severity)
 )
 
-/* ========== DTO -> Entity ========== */
+// DTO -> Entity
 
 fun AppointmentDto.toEntity(): VetAppointmentEntity = VetAppointmentEntity(
     id = id, veterinarianName = veterinarianName,
@@ -55,7 +55,7 @@ fun ClinicalRecordDto.toEntity(): ClinicalEntryEntity = ClinicalEntryEntity(
     id = id, title = title, dateLabel = dateLabel, severity = severity
 )
 
-/* ========== Entity -> Domain ========== */
+// Entity -> Domain
 
 fun VetAppointmentEntity.toDomain(): VetAppointment = VetAppointment(
     id = id,
@@ -80,7 +80,7 @@ fun ClinicalEntryEntity.toDomain(): ClinicalEntry = ClinicalEntry(
     severity = parseSeverity(severity)
 )
 
-/* ========== Helpers ========== */
+// Helpers de parseo de strings del backend
 
 private fun parseStatus(raw: String): AppointmentStatus =
     runCatching { AppointmentStatus.valueOf(raw.uppercase()) }

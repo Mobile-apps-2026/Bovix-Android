@@ -26,31 +26,23 @@ class HomeRepositoryImpl @Inject constructor(
     override fun getHomeData(): Flow<Resource<HomeData>> = flow {
         emit(Resource.Loading)
 
-        // 1. Emitimos cache local si existe (offline-first)
+        // Primero mostramos lo que haya en cache para que la pantalla no quede vacía
         dao.get()?.let { emit(Resource.Success(it.toDomain())) }
 
-        // 2. Intentamos refrescar desde la red
         try {
             val remote = fetchRemoteOrFallback()
             dao.upsert(remote.toEntity())
             emit(Resource.Success(remote.toDomain()))
         } catch (io: IOException) {
-            // Si ya emitimos cache, no sobreescribimos con error; solo emitimos error
-            // si no había cache previo
-            if (dao.get() == null) {
-                emit(Resource.Error("Sin conexión", io))
-            }
+            // Solo propagamos el error si no había cache que mostrar
+            if (dao.get() == null) emit(Resource.Error("Sin conexión", io))
         } catch (e: Exception) {
-            if (dao.get() == null) {
+            if (dao.get() == null)
                 emit(Resource.Error(e.localizedMessage ?: "Error al cargar inicio", e))
-            }
         }
     }
 
-    /**
-     * MODO DEMO: mientras no exista backend, devolvemos datos del mockup.
-     * Cuando el endpoint esté listo, reemplazar por `api.getSummary()`.
-     */
+    // Sin backend activo cae al mockup; cambiar por api.getSummary() cuando esté disponible.
     private suspend fun fetchRemoteOrFallback(): HomeResponseDto {
         return try {
             api.getSummary()
