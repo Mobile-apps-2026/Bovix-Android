@@ -5,12 +5,19 @@ import pe.edu.upc.bovix.cattle.domain.model.Animal
 data class CattleUiState(
     val isLoading: Boolean = false,
     val animals: List<Animal> = emptyList(),
-    val selectedLot: String = "Todos",   // "Todos", "Lote A", "Lote B", ...
+    val lots: List<String> = emptyList(),
+    val selectedLot: String = "Todos",
     val query: String = "",
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val showAddAnimalDialog: Boolean = false,
+    val showAddLotDialog: Boolean = false,
+    val editingAnimal: Animal? = null,
+    val deletingAnimal: Animal? = null,
+    val deletingLot: String? = null,
+    val snackbarMessage: String? = null,
 ) {
     val availableLots: List<String>
-        get() = listOf("Todos") + animals.map { "Lote ${it.lot}" }.distinct().sorted()
+        get() = listOf("Todos") + lots.map { "Lote $it" }
 
     val filteredAnimals: List<Animal>
         get() = animals.filter { animal ->

@@ -8,13 +8,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import pe.edu.upc.bovix.auth.domain.usecase.GetCurrentUserUseCase
+import pe.edu.upc.bovix.auth.domain.usecase.LogoutUseCase
 import pe.edu.upc.bovix.core.common.Resource
 import pe.edu.upc.bovix.home.domain.usecase.GetHomeDataUseCase
 import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val getHomeDataUseCase: GetHomeDataUseCase
+    private val getHomeDataUseCase: GetHomeDataUseCase,
+    private val getCurrentUserUseCase: GetCurrentUserUseCase,
+    private val logoutUseCase: LogoutUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -22,6 +26,10 @@ class HomeViewModel @Inject constructor(
 
     init {
         load()
+        viewModelScope.launch {
+            val user = getCurrentUserUseCase()
+            _uiState.update { it.copy(userEmail = user?.email ?: "") }
+        }
     }
 
     fun load() {
@@ -39,4 +47,16 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
+    fun showProfile() = _uiState.update { it.copy(showProfileSheet = true) }
+    fun hideProfile() = _uiState.update { it.copy(showProfileSheet = false) }
+
+    fun logout() {
+        viewModelScope.launch {
+            logoutUseCase()
+            _uiState.update { it.copy(showProfileSheet = false, loggedOut = true) }
+        }
+    }
+
+    fun consumeLogout() = _uiState.update { it.copy(loggedOut = false) }
 }

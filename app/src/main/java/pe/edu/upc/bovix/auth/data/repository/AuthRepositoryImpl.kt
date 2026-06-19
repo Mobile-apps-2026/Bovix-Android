@@ -7,6 +7,7 @@ import pe.edu.upc.bovix.auth.data.mapper.toDomain
 import pe.edu.upc.bovix.auth.data.mapper.toEntity
 import pe.edu.upc.bovix.auth.data.remote.AuthApi
 import pe.edu.upc.bovix.auth.data.remote.dto.LoginRequestDto
+import pe.edu.upc.bovix.auth.data.remote.dto.LoginResponseDto
 import pe.edu.upc.bovix.auth.domain.model.User
 import pe.edu.upc.bovix.auth.domain.repository.AuthRepository
 import pe.edu.upc.bovix.core.common.Resource
@@ -25,7 +26,7 @@ class AuthRepositoryImpl @Inject constructor(
         try {
             // Credenciales fijas de demo; quitar este bloque cuando el backend esté disponible.
             if (email.equals("juan@ejemplo.com", ignoreCase = true) && password == "123456") {
-                val dto = pe.edu.upc.bovix.auth.data.remote.dto.LoginResponseDto(
+                val dto = LoginResponseDto(
                     id = "u-001",
                     fullName = "Juan Quispe",
                     email = email,
@@ -44,6 +45,17 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             emit(Resource.Error(e.localizedMessage ?: "Credenciales inválidas", e))
         }
+    }
+
+    override suspend fun register(fullName: String, email: String, password: String): User {
+        val dto = LoginResponseDto(
+            id = "u-${System.currentTimeMillis()}",
+            fullName = fullName.trim(),
+            email = email.trim().lowercase(),
+            token = "demo-token"
+        )
+        dao.upsert(dto.toEntity())
+        return dto.toDomain()
     }
 
     override suspend fun getCachedUser(): User? = dao.getCurrent()?.toDomain()
