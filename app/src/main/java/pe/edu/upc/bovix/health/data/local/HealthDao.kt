@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface HealthDao {
@@ -13,6 +14,9 @@ interface HealthDao {
 
     @Query("SELECT * FROM vet_appointments ORDER BY scheduledAt ASC LIMIT 1")
     suspend fun getNextAppointment(): VetAppointmentEntity?
+
+    @Query("SELECT * FROM vet_appointments ORDER BY scheduledAt ASC")
+    fun observeAppointments(): Flow<List<VetAppointmentEntity>>
 
     @Query("DELETE FROM vet_appointments")
     suspend fun clearAppointments()

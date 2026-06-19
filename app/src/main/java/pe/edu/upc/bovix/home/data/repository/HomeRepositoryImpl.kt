@@ -35,22 +35,17 @@ class HomeRepositoryImpl @Inject constructor(
         errorMessage = "Error al cargar inicio"
     )
 
-    // Sin backend activo cae al datos locales; cambiar por api.getSummary() cuando esté disponible.
     private suspend fun fetchRemoteOrFallback(): HomeResponseDto {
+        val activities = buildRecentActivities()
         return try {
-            api.getSummary()
+            api.getSummary().copy(activities = activities)
         } catch (_: Throwable) {
             val animals = animalDao.getAll()
-            val totalAnimals = animals.size
-            val activeLots = animals.map { it.lot }.filter { it.isNotBlank() }.distinct().size
-
-            val activities = buildRecentActivities()
-
             HomeResponseDto(
-                userName = "Juan Quispe",
+                userName = "",
                 stats = HomeStatsDto(
-                    totalAnimals = totalAnimals,
-                    activeLots = activeLots,
+                    totalAnimals = animals.size,
+                    activeLots = animals.map { it.lot }.filter { it.isNotBlank() }.distinct().size,
                     appointmentsToday = 0,
                     alerts = 0
                 ),

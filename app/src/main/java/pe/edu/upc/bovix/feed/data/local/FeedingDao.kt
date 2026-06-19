@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FeedingDao {
@@ -13,6 +14,9 @@ interface FeedingDao {
 
     @Query("SELECT * FROM feeding_plans ORDER BY lot ASC")
     suspend fun getPlans(): List<FeedingPlanEntity>
+
+    @Query("SELECT * FROM feeding_plans ORDER BY createdAt DESC")
+    fun observePlans(): Flow<List<FeedingPlanEntity>>
 
     @Query("DELETE FROM feeding_plans")
     suspend fun clearPlans()
