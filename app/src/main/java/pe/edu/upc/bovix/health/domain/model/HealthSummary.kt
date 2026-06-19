@@ -2,11 +2,11 @@ package pe.edu.upc.bovix.health.domain.model
 
 import java.time.LocalDateTime
 
-// Todo lo que necesita la pantalla de Salud en un solo objeto.
 data class HealthSummary(
     val nextAppointment: VetAppointment?,
     val pendingVaccinations: List<PendingVaccination>,
-    val clinicalHistory: List<ClinicalEntry>
+    val clinicalHistory: List<ClinicalEntry>,
+    val availableBovines: List<Pair<Int, String>> = emptyList()
 )
 
 data class VetAppointment(
@@ -33,5 +33,5 @@ data class ClinicalEntry(
     val id: String,
     val title: String,
     val dateLabel: String,
-    val severity: AlertSeverity?  // null cuando la entrada no tiene severidad (ej. un tratamiento)
+    val severity: AlertSeverity?
 )

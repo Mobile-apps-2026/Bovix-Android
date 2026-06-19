@@ -4,16 +4,22 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import pe.edu.upc.bovix.core.common.Resource
 import pe.edu.upc.bovix.health.data.local.HealthDao
+import pe.edu.upc.bovix.health.data.mapper.parseDate
+import pe.edu.upc.bovix.health.data.mapper.parseSeverity
+import pe.edu.upc.bovix.health.data.mapper.toClinicalEntry
 import pe.edu.upc.bovix.health.data.mapper.toDomain
 import pe.edu.upc.bovix.health.data.mapper.toEntity
+import pe.edu.upc.bovix.health.data.mapper.toPendingVaccination
 import pe.edu.upc.bovix.health.data.remote.HealthApi
-import pe.edu.upc.bovix.health.data.remote.dto.AppointmentDto
-import pe.edu.upc.bovix.health.data.remote.dto.ClinicalRecordDto
-import pe.edu.upc.bovix.health.data.remote.dto.PendingVaccineDto
+import pe.edu.upc.bovix.health.data.remote.dto.CreateAppointmentDto
+import pe.edu.upc.bovix.health.data.remote.dto.CreateClinicalRecordDto
+import pe.edu.upc.bovix.health.domain.model.AlertSeverity
+import pe.edu.upc.bovix.health.domain.model.AppointmentStatus
 import pe.edu.upc.bovix.health.domain.model.HealthSummary
 import pe.edu.upc.bovix.health.domain.repository.HealthRepository
 import java.io.IOException
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -30,32 +36,87 @@ class HealthRepositoryImpl @Inject constructor(
         if (cachedSummary.hasContent()) emit(Resource.Success(cachedSummary))
 
         try {
-            val appointment = fetchAppointmentOrFallback()
-            val pending = fetchPendingOrFallback()
-            val history = fetchHistoryOrFallback()
+            val bovines = api.getBovines()
+            val bovineMap = bovines.associate { it.id to (it.name to it.lot) }
 
+            val appointments = api.getAppointments()
+            val nextDto = appointments
+                .filter { it.status.equals("SCHEDULED", ignoreCase = true) }
+                .minByOrNull { parseDate(it.scheduledAt) }
+
+            val vaccines = api.getVaccines()
+            val pendingVaccinations = vaccines.map { v ->
+                val (name, lot) = bovineMap[v.bovineId] ?: ("Bovino #${v.bovineId}" to null)
+                v.toPendingVaccination(name, lot)
+            }
+
+            val records = api.getClinicalRecords()
+            val clinicalHistory = records.map { r ->
+                val bovineName = bovineMap[r.bovineId]?.first
+                r.toClinicalEntry(bovineName)
+            }.sortedByDescending { it.dateLabel }
+
+            val availableBovines = bovines.map { it.id to it.name }
+
+            // Cache to local DB using DTO-level mappers
             dao.clearAppointments()
-            appointment?.let { dao.upsertAppointment(it.toEntity()) }
+            nextDto?.let { dao.upsertAppointment(it.toEntity()) }
             dao.clearPendingVaccinations()
-            dao.upsertPendingVaccinations(pending.map { it.toEntity() })
+            dao.upsertPendingVaccinations(pendingVaccinations.map { it.toEntity() })
             dao.clearClinicalEntries()
-            dao.upsertClinicalEntries(history.map { it.toEntity() })
+            dao.upsertClinicalEntries(clinicalHistory.map { it.toEntity() })
 
-            emit(
-                Resource.Success(
-                    HealthSummary(
-                        nextAppointment = appointment?.toDomain(),
-                        pendingVaccinations = pending.map { it.toDomain() },
-                        clinicalHistory = history.map { it.toDomain() }
-                    )
-                )
-            )
+            emit(Resource.Success(HealthSummary(
+                nextAppointment = nextDto?.toDomain(),
+                pendingVaccinations = pendingVaccinations,
+                clinicalHistory = clinicalHistory,
+                availableBovines = availableBovines
+            )))
         } catch (io: IOException) {
             if (!cachedSummary.hasContent()) emit(Resource.Error("Sin conexión", io))
         } catch (e: Exception) {
             if (!cachedSummary.hasContent())
                 emit(Resource.Error(e.localizedMessage ?: "Error al cargar Salud", e))
         }
+    }
+
+    override suspend fun scheduleAppointment(
+        veterinarianName: String, lot: String?, scheduledAt: LocalDateTime
+    ) {
+        api.createAppointment(
+            CreateAppointmentDto(
+                veterinarianName = veterinarianName,
+                scheduledAt = scheduledAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                lot = lot,
+                status = AppointmentStatus.SCHEDULED.name
+            )
+        )
+    }
+
+    override suspend fun cancelAppointment(id: String) {
+        val intId = id.toIntOrNull() ?: return
+        api.deleteAppointment(intId)
+    }
+
+    override suspend fun addClinicalEntry(
+        bovineId: Int, diagnosis: String, treatment: String?,
+        severity: AlertSeverity?, veterinarianName: String?
+    ) {
+        api.createClinicalRecord(
+            CreateClinicalRecordDto(
+                bovineId = bovineId,
+                recordDate = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                diagnosis = diagnosis,
+                treatment = treatment,
+                severity = severity?.name ?: AlertSeverity.LOW.name,
+                veterinarianName = veterinarianName
+            )
+        )
+    }
+
+    override suspend fun markVaccineDone(id: String) {
+        val intId = id.toIntOrNull() ?: return
+        api.deleteVaccine(intId)
     }
 
     private suspend fun buildCachedSummary(): HealthSummary = HealthSummary(
@@ -66,45 +127,4 @@ class HealthRepositoryImpl @Inject constructor(
 
     private fun HealthSummary.hasContent(): Boolean =
         nextAppointment != null || pendingVaccinations.isNotEmpty() || clinicalHistory.isNotEmpty()
-
-    // Cada función intenta el endpoint real; si falla vuelve a datos de demo.
-    private suspend fun fetchAppointmentOrFallback(): AppointmentDto? = try {
-        api.getNextAppointment()
-    } catch (_: Throwable) {
-        AppointmentDto(
-            id = "ap-1",
-            veterinarianName = "Dr. Johan Bottger",
-            scheduledAt = LocalDateTime.now().plusDays(1).withHour(9).withMinute(0).toString(),
-            lots = "Lote A y B",
-            status = "SCHEDULED"
-        )
-    }
-
-    private suspend fun fetchPendingOrFallback(): List<PendingVaccineDto> = try {
-        api.getPendingVaccines()
-    } catch (_: Throwable) {
-        listOf(
-            PendingVaccineDto("pv-1", "Fiebre aftosa", "Lote B (22 animales)", "Mañana", "HIGH"),
-            PendingVaccineDto("pv-2", "Brucelosis", "Lote C (18 animales)", "15 jun", "MEDIUM")
-        )
-    }
-
-    private suspend fun fetchHistoryOrFallback(): List<ClinicalRecordDto> = try {
-        api.getClinicalRecords()
-    } catch (_: Throwable) {
-        listOf(
-            ClinicalRecordDto(
-                "cr-1",
-                "Diagnóstico: Animal #018 – Mastitis leve",
-                "8 may",
-                "MEDIUM"
-            ),
-            ClinicalRecordDto(
-                "cr-2",
-                "Tratamiento: Antibiótico 7 días · Dr. Bottger",
-                "8 may",
-                null
-            )
-        )
-    }
 }

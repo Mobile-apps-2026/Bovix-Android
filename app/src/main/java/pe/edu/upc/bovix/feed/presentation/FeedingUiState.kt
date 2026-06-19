@@ -11,6 +11,7 @@ data class FeedingUiState(
     val showCreatePlanDialog: Boolean = false,
     val deletingPlan: FeedingPlan? = null,
     val snackbarMessage: String? = null,
+    val availableLots: List<Pair<String, Int>> = emptyList(),
 ) {
     val selectedPlan: FeedingPlan?
         get() = plans.firstOrNull { it.lot == selectedLot } ?: plans.firstOrNull()

@@ -3,11 +3,12 @@ package pe.edu.upc.bovix.auth.data.repository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import pe.edu.upc.bovix.auth.data.local.UserDao
-import pe.edu.upc.bovix.auth.data.mapper.toDomain
 import pe.edu.upc.bovix.auth.data.mapper.toEntity
+import pe.edu.upc.bovix.auth.data.mapper.toDomain
+import pe.edu.upc.bovix.auth.data.mapper.toUser
 import pe.edu.upc.bovix.auth.data.remote.AuthApi
 import pe.edu.upc.bovix.auth.data.remote.dto.LoginRequestDto
-import pe.edu.upc.bovix.auth.data.remote.dto.LoginResponseDto
+import pe.edu.upc.bovix.auth.data.remote.dto.RegisterRequestDto
 import pe.edu.upc.bovix.auth.domain.model.User
 import pe.edu.upc.bovix.auth.domain.repository.AuthRepository
 import pe.edu.upc.bovix.core.common.Resource
@@ -24,22 +25,10 @@ class AuthRepositoryImpl @Inject constructor(
     override fun login(email: String, password: String): Flow<Resource<User>> = flow {
         emit(Resource.Loading)
         try {
-            // Credenciales fijas de demo; quitar este bloque cuando el backend esté disponible.
-            if (email.equals("juan@ejemplo.com", ignoreCase = true) && password == "123456") {
-                val dto = LoginResponseDto(
-                    id = "u-001",
-                    fullName = "Juan Quispe",
-                    email = email,
-                    token = "demo-token"
-                )
-                dao.upsert(dto.toEntity())
-                emit(Resource.Success(dto.toDomain()))
-                return@flow
-            }
-
             val response = api.login(LoginRequestDto(email, password))
-            dao.upsert(response.toEntity())
-            emit(Resource.Success(response.toDomain()))
+            val entity = response.toEntity(email, displayName = null)
+            dao.upsert(entity)
+            emit(Resource.Success(entity.toDomain()))
         } catch (io: IOException) {
             emit(Resource.Error("Sin conexión. Verifica tu red.", io))
         } catch (e: Exception) {
@@ -48,14 +37,16 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun register(fullName: String, email: String, password: String): User {
-        val dto = LoginResponseDto(
-            id = "u-${System.currentTimeMillis()}",
-            fullName = fullName.trim(),
-            email = email.trim().lowercase(),
-            token = "demo-token"
+        val response = api.register(
+            RegisterRequestDto(
+                username = fullName.trim(),
+                password = password,
+                email = email.trim().lowercase()
+            )
         )
-        dao.upsert(dto.toEntity())
-        return dto.toDomain()
+        val entity = response.toEntity(email.trim().lowercase(), displayName = fullName.trim())
+        dao.upsert(entity)
+        return entity.toDomain()
     }
 
     override suspend fun getCachedUser(): User? = dao.getCurrent()?.toDomain()

@@ -11,13 +11,15 @@ import kotlinx.coroutines.launch
 import pe.edu.upc.bovix.cattle.domain.model.Animal
 import pe.edu.upc.bovix.cattle.domain.model.AnimalGender
 import pe.edu.upc.bovix.cattle.domain.model.AnimalStatus
+import pe.edu.upc.bovix.cattle.domain.repository.CattleRepository
 import pe.edu.upc.bovix.cattle.domain.usecase.GetAnimalsUseCase
 import pe.edu.upc.bovix.core.common.Resource
 import javax.inject.Inject
 
 @HiltViewModel
 class CattleViewModel @Inject constructor(
-    private val getAnimalsUseCase: GetAnimalsUseCase
+    private val getAnimalsUseCase: GetAnimalsUseCase,
+    private val repository: CattleRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CattleUiState())
@@ -33,8 +35,8 @@ class CattleViewModel @Inject constructor(
                     is Resource.Success -> _uiState.update {
                         it.copy(
                             isLoading = false,
-                            animals = result.data,
-                            lots = result.data.map { a -> a.lot }.distinct().sorted(),
+                            animals = result.data.animals,
+                            lots = result.data.lots,
                             errorMessage = null
                         )
                     }
@@ -55,14 +57,15 @@ class CattleViewModel @Inject constructor(
     fun hideAddAnimalDialog() = _uiState.update { it.copy(showAddAnimalDialog = false) }
 
     fun addAnimal(name: String, lot: String, status: AnimalStatus, gender: AnimalGender, weightKg: Int) {
-        val id = "#${(System.currentTimeMillis() % 900 + 100)}"
-        _uiState.update { state ->
-            state.copy(
-                animals = state.animals + Animal(id, name.trim(), lot, status, gender, weightKg),
-                lots = (state.lots + lot).distinct().sorted(),
-                showAddAnimalDialog = false,
-                snackbarMessage = "Animal agregado"
-            )
+        viewModelScope.launch {
+            _uiState.update { it.copy(showAddAnimalDialog = false, isLoading = true) }
+            try {
+                repository.addAnimal(name.trim(), lot, status, gender, weightKg)
+                _uiState.update { it.copy(snackbarMessage = "Animal agregado") }
+                load()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage ?: "Error al agregar animal") }
+            }
         }
     }
 
@@ -70,13 +73,15 @@ class CattleViewModel @Inject constructor(
     fun hideEditAnimalDialog() = _uiState.update { it.copy(editingAnimal = null) }
 
     fun updateAnimal(updated: Animal) {
-        _uiState.update { state ->
-            state.copy(
-                animals = state.animals.map { if (it.id == updated.id) updated else it },
-                lots = (state.lots + updated.lot).distinct().sorted(),
-                editingAnimal = null,
-                snackbarMessage = "Cambios guardados"
-            )
+        viewModelScope.launch {
+            _uiState.update { it.copy(editingAnimal = null, isLoading = true) }
+            try {
+                repository.updateAnimal(updated)
+                _uiState.update { it.copy(snackbarMessage = "Cambios guardados") }
+                load()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage ?: "Error al actualizar animal") }
+            }
         }
     }
 
@@ -85,12 +90,15 @@ class CattleViewModel @Inject constructor(
 
     fun confirmDeleteAnimal() {
         val target = _uiState.value.deletingAnimal ?: return
-        _uiState.update {
-            it.copy(
-                animals = it.animals.filter { a -> a.id != target.id },
-                deletingAnimal = null,
-                snackbarMessage = "Animal eliminado"
-            )
+        viewModelScope.launch {
+            _uiState.update { it.copy(deletingAnimal = null, isLoading = true) }
+            try {
+                repository.deleteAnimal(target.id)
+                _uiState.update { it.copy(snackbarMessage = "Animal eliminado") }
+                load()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage ?: "Error al eliminar animal") }
+            }
         }
     }
 
@@ -102,12 +110,15 @@ class CattleViewModel @Inject constructor(
     fun addLot(name: String) {
         val clean = name.trim().uppercase()
         if (clean.isEmpty()) return
-        _uiState.update {
-            it.copy(
-                lots = (it.lots + clean).distinct().sorted(),
-                showAddLotDialog = false,
-                snackbarMessage = "Lote $clean creado"
-            )
+        viewModelScope.launch {
+            _uiState.update { it.copy(showAddLotDialog = false, isLoading = true) }
+            try {
+                repository.addLot(clean)
+                _uiState.update { it.copy(snackbarMessage = "Lote $clean creado") }
+                load()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage ?: "Error al crear lote") }
+            }
         }
     }
 
@@ -116,14 +127,15 @@ class CattleViewModel @Inject constructor(
 
     fun confirmDeleteLot() {
         val lot = _uiState.value.deletingLot ?: return
-        _uiState.update {
-            it.copy(
-                lots = it.lots.filter { l -> l != lot },
-                animals = it.animals.filter { a -> a.lot != lot },
-                deletingLot = null,
-                selectedLot = "Todos",
-                snackbarMessage = "Lote eliminado"
-            )
+        viewModelScope.launch {
+            _uiState.update { it.copy(deletingLot = null, isLoading = true) }
+            try {
+                repository.deleteLot(lot)
+                _uiState.update { it.copy(snackbarMessage = "Lote eliminado", selectedLot = "Todos") }
+                load()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage ?: "Error al eliminar lote") }
+            }
         }
     }
 

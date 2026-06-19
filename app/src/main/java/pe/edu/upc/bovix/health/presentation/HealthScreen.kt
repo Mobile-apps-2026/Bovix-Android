@@ -4,6 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -39,8 +41,6 @@ import java.util.Locale
 fun HealthScreen(viewModel: HealthViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = LocalSnackbarHostState.current
-    var showMenu by remember { mutableStateOf(false) }
-
     LaunchedEffect(state.snackbarMessage) {
         state.snackbarMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -57,12 +57,8 @@ fun HealthScreen(viewModel: HealthViewModel = hiltViewModel()) {
                 appointment = state.data?.nextAppointment,
                 pending = state.data?.pendingVaccinations ?: emptyList(),
                 history = state.data?.clinicalHistory ?: emptyList(),
-                showMenu = showMenu,
-                onMenuToggle = { showMenu = it },
-                onSchedule = { showMenu = false; viewModel.showScheduleDialog() },
-                onAddClinical = { showMenu = false; viewModel.showAddClinicalDialog() },
-                onCancelAppointment = viewModel::requestCancelAppointment,
-                onMarkVaccineDone = viewModel::markVaccineDone
+                onSchedule = viewModel::showScheduleDialog,
+                onCancelAppointment = viewModel::requestCancelAppointment
             )
         }
     }
@@ -71,6 +67,7 @@ fun HealthScreen(viewModel: HealthViewModel = hiltViewModel()) {
     if (state.showScheduleDialog) {
         ScheduleAppointmentDialog(
             hasExisting = state.data?.nextAppointment != null,
+            availableLots = state.availableLots,
             onConfirm = { vetName, lots, dateTime ->
                 viewModel.scheduleAppointment(vetName, lots, dateTime)
             },
@@ -95,15 +92,6 @@ fun HealthScreen(viewModel: HealthViewModel = hiltViewModel()) {
         )
     }
 
-    // Diálogo: agregar entrada clínica
-    if (state.showAddClinicalDialog) {
-        AddClinicalEntryDialog(
-            onConfirm = { title, dateLabel, severity ->
-                viewModel.addClinicalEntry(title, dateLabel, severity)
-            },
-            onDismiss = viewModel::hideAddClinicalDialog
-        )
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -112,12 +100,8 @@ private fun HealthContent(
     appointment: VetAppointment?,
     pending: List<PendingVaccination>,
     history: List<ClinicalEntry>,
-    showMenu: Boolean,
-    onMenuToggle: (Boolean) -> Unit,
     onSchedule: () -> Unit,
-    onAddClinical: () -> Unit,
-    onCancelAppointment: () -> Unit,
-    onMarkVaccineDone: (String) -> Unit
+    onCancelAppointment: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -134,29 +118,15 @@ private fun HealthContent(
                 .padding(horizontal = 16.dp, vertical = 18.dp)
         ) {
             Text("Salud Animal", color = Color.White, style = MaterialTheme.typography.titleLarge)
-            Box {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MintGreen)
-                        .clickable { onMenuToggle(true) },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Add, null, tint = ForestGreen, modifier = Modifier.size(18.dp))
-                }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { onMenuToggle(false) }) {
-                    DropdownMenuItem(
-                        text = { Text("Agendar cita") },
-                        leadingIcon = { Icon(Icons.Default.CalendarToday, null) },
-                        onClick = onSchedule
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Agregar entrada clínica") },
-                        leadingIcon = { Icon(Icons.Default.Description, null) },
-                        onClick = onAddClinical
-                    )
-                }
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MintGreen)
+                    .clickable { onSchedule() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Add, null, tint = ForestGreen, modifier = Modifier.size(18.dp))
             }
         }
 
@@ -168,20 +138,30 @@ private fun HealthContent(
         }
 
         // Vacunaciones pendientes
+        SectionHeader("Vacunación pendiente")
         if (pending.isNotEmpty()) {
-            SectionHeader("Vacunación pendiente")
             Column(modifier = Modifier.padding(horizontal = 12.dp)) {
                 pending.forEach {
-                    PendingVaccineRow(it, onDone = { onMarkVaccineDone(it.id) })
+                    PendingVaccineRow(it)
                     Spacer(Modifier.height(8.dp))
                 }
             }
+        } else {
+            SpecialistInfoBanner(
+                icon = Icons.Default.Vaccines,
+                message = "Las vacunas son programadas y confirmadas por el especialista de salud animal"
+            )
         }
 
         // Historial clínico
+        SectionHeader("Historial clínico")
         if (history.isNotEmpty()) {
-            SectionHeader("Historial clínico")
             ClinicalHistoryCard(history)
+        } else {
+            SpecialistInfoBanner(
+                icon = Icons.Default.Description,
+                message = "El historial clínico es registrado por el especialista de salud animal"
+            )
         }
 
         Spacer(Modifier.height(24.dp))
@@ -293,7 +273,7 @@ private fun SectionHeader(title: String) {
 }
 
 @Composable
-private fun PendingVaccineRow(v: PendingVaccination, onDone: () -> Unit) {
+private fun PendingVaccineRow(v: PendingVaccination) {
     val (fg, bg) = when (v.severity) {
         AlertSeverity.HIGH -> Danger to DangerBg
         AlertSeverity.MEDIUM -> Warn to WarnBg
@@ -324,11 +304,27 @@ private fun PendingVaccineRow(v: PendingVaccination, onDone: () -> Unit) {
                 Text(v.lotLabel, style = MaterialTheme.typography.bodySmall, color = TextMute)
             }
             Text(v.dueLabel, color = fg, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.width(8.dp))
-            // Marcar como aplicada
-            IconButton(onClick = onDone, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.CheckCircle, "Marcar como aplicada", tint = MediumGreen, modifier = Modifier.size(20.dp))
-            }
+        }
+    }
+}
+
+@Composable
+private fun SpecialistInfoBanner(icon: androidx.compose.ui.graphics.vector.ImageVector, message: String) {
+    Surface(
+        color = BgPrimary,
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, BorderSoft),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(14.dp)
+        ) {
+            Icon(icon, null, tint = TextMute, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(12.dp))
+            Text(message, style = MaterialTheme.typography.bodySmall, color = TextMute)
         }
     }
 }
@@ -381,15 +377,16 @@ private fun ClinicalHistoryRow(entry: ClinicalEntry) {
 
 // ─── Diálogo: agendar cita ────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun ScheduleAppointmentDialog(
     hasExisting: Boolean,
+    availableLots: List<String>,
     onConfirm: (vetName: String, lots: String, dateTime: LocalDateTime) -> Unit,
     onDismiss: () -> Unit
 ) {
     var vetName by remember { mutableStateOf("") }
-    var lots by remember { mutableStateOf("") }
+    var selectedLots by remember { mutableStateOf(emptySet<String>()) }
     var hourStr by remember { mutableStateOf("09") }
     var minuteStr by remember { mutableStateOf("00") }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -402,7 +399,8 @@ private fun ScheduleAppointmentDialog(
     }
     val dateLabel = selectedDate?.format(DateTimeFormatter.ofPattern("d 'de' MMMM yyyy", Locale("es"))) ?: "Seleccionar fecha"
 
-    val canSave = vetName.isNotBlank() && lots.isNotBlank() && selectedDate != null &&
+    val lotsString = selectedLots.sorted().joinToString(", ")
+    val canSave = vetName.isNotBlank() && selectedLots.isNotEmpty() && selectedDate != null &&
         hourStr.toIntOrNull() in 0..23 && minuteStr.toIntOrNull() in 0..59
 
     if (showDatePicker) {
@@ -446,14 +444,37 @@ private fun ScheduleAppointmentDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedTextField(
-                    value = lots,
-                    onValueChange = { lots = it },
-                    label = { Text("Lotes") },
-                    placeholder = { Text("ej. Lote A y B", color = TextMute) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Selector de lotes
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Lotes", style = MaterialTheme.typography.bodySmall, color = TextMute)
+                    if (availableLots.isNotEmpty()) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            availableLots.forEach { lotName ->
+                                val selected = lotName in selectedLots
+                                FilterChip(
+                                    selected = selected,
+                                    onClick = {
+                                        selectedLots = if (selected)
+                                            selectedLots - lotName
+                                        else
+                                            selectedLots + lotName
+                                    },
+                                    label = { Text("Lote $lotName") },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MediumGreen,
+                                        selectedLabelColor = Color.White
+                                    )
+                                )
+                            }
+                        }
+                    } else {
+                        Text(
+                            "No hay lotes registrados en ganado",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextMute
+                        )
+                    }
+                }
 
                 // Selector de fecha
                 OutlinedTextField(
@@ -503,104 +524,12 @@ private fun ScheduleAppointmentDialog(
                             selectedDate!!,
                             LocalTime.of(hourStr.toInt(), minuteStr.toInt())
                         )
-                        onConfirm(vetName, lots, dt)
+                        onConfirm(vetName, lotsString, dt)
                     }
                 },
                 enabled = canSave
             ) {
                 Text("Agendar", color = if (canSave) ForestGreen else TextMute)
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
-    )
-}
-
-// ─── Diálogo: agregar entrada clínica ─────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AddClinicalEntryDialog(
-    onConfirm: (title: String, dateLabel: String, severity: AlertSeverity?) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var title by remember { mutableStateOf("") }
-    var dateLabel by remember { mutableStateOf("") }
-    var severityExpanded by remember { mutableStateOf(false) }
-    var severity by remember { mutableStateOf<AlertSeverity?>(null) }
-
-    val severityLabel = when (severity) {
-        AlertSeverity.HIGH -> "Alta"
-        AlertSeverity.MEDIUM -> "Media"
-        AlertSeverity.LOW -> "Baja"
-        null -> "Sin severidad"
-    }
-    val canSave = title.isNotBlank() && dateLabel.isNotBlank()
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Nueva entrada clínica", style = MaterialTheme.typography.titleMedium) },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("Descripción") },
-                    placeholder = { Text("ej. Diagnóstico: Animal #018 – Mastitis leve", color = TextMute) },
-                    singleLine = false,
-                    maxLines = 3,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = dateLabel,
-                    onValueChange = { dateLabel = it },
-                    label = { Text("Fecha") },
-                    placeholder = { Text("ej. 18 jun", color = TextMute) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                ExposedDropdownMenuBox(
-                    expanded = severityExpanded,
-                    onExpandedChange = { severityExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = severityLabel,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Severidad") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(severityExpanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                    )
-                    ExposedDropdownMenu(
-                        expanded = severityExpanded,
-                        onDismissRequest = { severityExpanded = false }
-                    ) {
-                        listOf(null, AlertSeverity.HIGH, AlertSeverity.MEDIUM, AlertSeverity.LOW).forEach { s ->
-                            val label = when (s) {
-                                AlertSeverity.HIGH -> "Alta"
-                                AlertSeverity.MEDIUM -> "Media"
-                                AlertSeverity.LOW -> "Baja"
-                                null -> "Sin severidad"
-                            }
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = { severity = s; severityExpanded = false }
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { if (canSave) onConfirm(title, dateLabel, severity) },
-                enabled = canSave
-            ) {
-                Text("Guardar", color = if (canSave) ForestGreen else TextMute)
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }

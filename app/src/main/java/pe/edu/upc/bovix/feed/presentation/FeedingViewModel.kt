@@ -8,21 +8,28 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import pe.edu.upc.bovix.cattle.domain.usecase.GetAnimalsUseCase
 import pe.edu.upc.bovix.core.common.Resource
 import pe.edu.upc.bovix.feed.domain.model.FeedingComponent
 import pe.edu.upc.bovix.feed.domain.model.FeedingPlan
+import pe.edu.upc.bovix.feed.domain.repository.FeedingRepository
 import pe.edu.upc.bovix.feed.domain.usecase.GetFeedingPlansUseCase
 import javax.inject.Inject
 
 @HiltViewModel
 class FeedingViewModel @Inject constructor(
-    private val getFeedingPlansUseCase: GetFeedingPlansUseCase
+    private val getFeedingPlansUseCase: GetFeedingPlansUseCase,
+    private val getAnimalsUseCase: GetAnimalsUseCase,
+    private val repository: FeedingRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FeedingUiState())
     val uiState: StateFlow<FeedingUiState> = _uiState.asStateFlow()
 
-    init { load() }
+    init {
+        load()
+        loadAvailableLots()
+    }
 
     fun load() {
         viewModelScope.launch {
@@ -45,6 +52,20 @@ class FeedingViewModel @Inject constructor(
         }
     }
 
+    private fun loadAvailableLots() {
+        viewModelScope.launch {
+            getAnimalsUseCase().collect { result ->
+                if (result is Resource.Success) {
+                    val data = result.data
+                    val lots = data.lots.map { lot ->
+                        lot to data.animals.count { it.lot == lot }
+                    }
+                    _uiState.update { it.copy(availableLots = lots) }
+                }
+            }
+        }
+    }
+
     fun onLotSelected(lot: String) = _uiState.update { it.copy(selectedLot = lot) }
 
     // --- Editar plan existente ---
@@ -53,18 +74,16 @@ class FeedingViewModel @Inject constructor(
     fun cancelEditPlan() = _uiState.update { it.copy(editingPlan = null) }
 
     fun savePlanEdit(lot: String, dailyRationKg: Double, animalCount: Int, components: List<FeedingComponent>) {
-        _uiState.update { state ->
-            val updated = state.editingPlan?.copy(
-                lot = lot,
-                dailyRationKg = dailyRationKg,
-                animalCount = animalCount,
-                components = components
-            ) ?: return@update state
-            state.copy(
-                plans = state.plans.map { if (it.id == updated.id) updated else it },
-                editingPlan = null,
-                snackbarMessage = "Plan actualizado"
-            )
+        val planId = _uiState.value.editingPlan?.id ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(editingPlan = null, isLoading = true) }
+            try {
+                repository.savePlanEdit(planId, lot, dailyRationKg, animalCount, components)
+                _uiState.update { it.copy(snackbarMessage = "Plan actualizado") }
+                load()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage ?: "Error al actualizar plan") }
+            }
         }
     }
 
@@ -74,22 +93,15 @@ class FeedingViewModel @Inject constructor(
     fun hideCreatePlanDialog() = _uiState.update { it.copy(showCreatePlanDialog = false) }
 
     fun createPlan(lot: String, dailyRationKg: Double, animalCount: Int, components: List<FeedingComponent>) {
-        val id = "plan-${lot.trim().uppercase()}-${System.currentTimeMillis()}"
-        val newPlan = FeedingPlan(
-            id = id,
-            lot = lot.trim().uppercase(),
-            dailyRationKg = dailyRationKg,
-            animalCount = animalCount,
-            components = components
-        )
-        _uiState.update { state ->
-            val updatedPlans = (state.plans + newPlan).sortedBy { it.lot }
-            state.copy(
-                plans = updatedPlans,
-                selectedLot = newPlan.lot,
-                showCreatePlanDialog = false,
-                snackbarMessage = "Plan creado"
-            )
+        viewModelScope.launch {
+            _uiState.update { it.copy(showCreatePlanDialog = false, isLoading = true) }
+            try {
+                val newPlan = repository.createPlan(lot.trim().uppercase(), dailyRationKg, animalCount, components)
+                _uiState.update { it.copy(snackbarMessage = "Plan creado", selectedLot = newPlan.lot) }
+                load()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage ?: "Error al crear plan") }
+            }
         }
     }
 
@@ -100,14 +112,15 @@ class FeedingViewModel @Inject constructor(
 
     fun confirmDeletePlan() {
         val target = _uiState.value.deletingPlan ?: return
-        _uiState.update { state ->
-            val remaining = state.plans.filter { it.id != target.id }
-            state.copy(
-                plans = remaining,
-                deletingPlan = null,
-                selectedLot = remaining.firstOrNull()?.lot,
-                snackbarMessage = "Plan eliminado"
-            )
+        viewModelScope.launch {
+            _uiState.update { it.copy(deletingPlan = null, isLoading = true) }
+            try {
+                repository.deletePlan(target.id)
+                _uiState.update { it.copy(snackbarMessage = "Plan eliminado") }
+                load()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage ?: "Error al eliminar plan") }
+            }
         }
     }
 

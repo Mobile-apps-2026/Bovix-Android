@@ -8,6 +8,6 @@ data class HealthUiState(
     val errorMessage: String? = null,
     val showScheduleDialog: Boolean = false,
     val confirmCancelAppointment: Boolean = false,
-    val showAddClinicalDialog: Boolean = false,
     val snackbarMessage: String? = null,
+    val availableLots: List<String> = emptyList(),
 )

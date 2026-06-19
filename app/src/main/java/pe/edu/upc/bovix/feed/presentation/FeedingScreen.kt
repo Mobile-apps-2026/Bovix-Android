@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,6 +84,7 @@ fun FeedingScreen(viewModel: FeedingViewModel = hiltViewModel()) {
             initial = null,
             lotEditable = true,
             existingLots = state.plans.map { it.lot },
+            availableLots = state.availableLots,
             onConfirm = { lot, ration, count, comps ->
                 viewModel.createPlan(lot, ration, count, comps)
             },
@@ -238,12 +240,14 @@ private fun FeedingContent(
 
 // ─── Diálogo de formulario (crear y editar comparten la misma UI) ─────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlanFormDialog(
     title: String,
     initial: FeedingPlan?,
     lotEditable: Boolean,
     existingLots: List<String>,
+    availableLots: List<Pair<String, Int>> = emptyList(),
     onConfirm: (lot: String, dailyRationKg: Double, animalCount: Int, components: List<FeedingComponent>) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -256,12 +260,17 @@ private fun PlanFormDialog(
                 ?: listOf(ComponentDraft(newId(), "", "100", ComponentColor.MINT))
         )
     }
+    var lotDropdownExpanded by remember { mutableStateOf(false) }
 
     val totalPct = components.sumOf { it.percentage.toIntOrNull() ?: 0 }
     val lotDuplicate = lotEditable && lot.trim().uppercase() in existingLots
     val canSave = lot.isNotBlank() && !lotDuplicate &&
         rationStr.toDoubleOrNull() != null && countStr.toIntOrNull() != null &&
         components.isNotEmpty() && components.all { it.name.isNotBlank() }
+
+    val lotsWithoutPlan = availableLots.filter { (name, _) ->
+        name.uppercase() !in existingLots.map { it.uppercase() }
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -281,18 +290,67 @@ private fun PlanFormDialog(
                 ) {
                     // Lote (solo editable al crear)
                     if (lotEditable) {
-                        OutlinedTextField(
-                            value = lot,
-                            onValueChange = { lot = it.trim().uppercase() },
-                            label = { Text("Nombre del lote") },
-                            placeholder = { Text("ej. D", color = TextMute) },
-                            singleLine = true,
-                            isError = lotDuplicate,
-                            supportingText = if (lotDuplicate) ({
-                                Text("Ya existe un plan para este lote", color = Danger)
-                            }) else null,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        if (lotsWithoutPlan.isNotEmpty()) {
+                            ExposedDropdownMenuBox(
+                                expanded = lotDropdownExpanded,
+                                onExpandedChange = { lotDropdownExpanded = it }
+                            ) {
+                                OutlinedTextField(
+                                    value = if (lot.isBlank()) "Seleccionar lote" else "Lote $lot",
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Lote") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(lotDropdownExpanded) },
+                                    isError = lotDuplicate,
+                                    supportingText = if (lotDuplicate) ({
+                                        Text("Ya existe un plan para este lote", color = Danger)
+                                    }) else null,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = lotDropdownExpanded,
+                                    onDismissRequest = { lotDropdownExpanded = false }
+                                ) {
+                                    lotsWithoutPlan.forEach { (name, count) ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Text("Lote $name")
+                                                    Text(
+                                                        "$count animales",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = TextMute
+                                                    )
+                                                }
+                                            },
+                                            onClick = {
+                                                lot = name
+                                                countStr = count.toString()
+                                                lotDropdownExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            OutlinedTextField(
+                                value = lot,
+                                onValueChange = { lot = it.trim().uppercase() },
+                                label = { Text("Nombre del lote") },
+                                placeholder = { Text("ej. D", color = TextMute) },
+                                singleLine = true,
+                                isError = lotDuplicate,
+                                supportingText = if (lotDuplicate) ({
+                                    Text("Ya existe un plan para este lote", color = Danger)
+                                }) else null,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
