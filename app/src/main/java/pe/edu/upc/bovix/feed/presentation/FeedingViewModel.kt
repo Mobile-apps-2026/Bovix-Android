@@ -8,19 +8,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import pe.edu.upc.bovix.cattle.domain.usecase.GetAnimalsUseCase
+import pe.edu.upc.bovix.cattle.data.local.AnimalDao
 import pe.edu.upc.bovix.core.common.Resource
 import pe.edu.upc.bovix.feed.domain.model.FeedingComponent
 import pe.edu.upc.bovix.feed.domain.model.FeedingPlan
 import pe.edu.upc.bovix.feed.domain.repository.FeedingRepository
-import pe.edu.upc.bovix.feed.domain.usecase.GetFeedingPlansUseCase
 import javax.inject.Inject
 
 @HiltViewModel
 class FeedingViewModel @Inject constructor(
-    private val getFeedingPlansUseCase: GetFeedingPlansUseCase,
-    private val getAnimalsUseCase: GetAnimalsUseCase,
-    private val repository: FeedingRepository
+    private val repository: FeedingRepository,
+    private val animalDao: AnimalDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FeedingUiState())
@@ -33,7 +31,7 @@ class FeedingViewModel @Inject constructor(
 
     fun load() {
         viewModelScope.launch {
-            getFeedingPlansUseCase().collect { result ->
+            repository.getFeedingPlans().collect { result ->
                 when (result) {
                     is Resource.Loading -> _uiState.update { it.copy(isLoading = true, errorMessage = null) }
                     is Resource.Success -> _uiState.update {
@@ -54,14 +52,13 @@ class FeedingViewModel @Inject constructor(
 
     private fun loadAvailableLots() {
         viewModelScope.launch {
-            getAnimalsUseCase().collect { result ->
-                if (result is Resource.Success) {
-                    val data = result.data
-                    val lots = data.lots.map { lot ->
-                        lot to data.animals.count { it.lot == lot }
-                    }
-                    _uiState.update { it.copy(availableLots = lots) }
-                }
+            animalDao.observeAll().collect { animals ->
+                val lots = animals
+                    .filter { it.lot.isNotBlank() }
+                    .groupBy { it.lot }
+                    .map { (lot, list) -> lot to list.size }
+                    .sortedBy { it.first }
+                _uiState.update { it.copy(availableLots = lots) }
             }
         }
     }

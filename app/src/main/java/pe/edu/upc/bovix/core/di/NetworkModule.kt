@@ -19,8 +19,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    // 10.0.2.2 es el alias del host desde el emulador de Android
-    private const val BASE_URL = "http://10.0.2.2:5160/api/v1/"
+    private const val BASE_URL = "https://bovix-backend.onrender.com/api/v1/"
 
     @Provides
     @Singleton

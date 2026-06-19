@@ -28,6 +28,8 @@ import pe.edu.upc.bovix.health.domain.model.AlertSeverity
 import pe.edu.upc.bovix.health.domain.model.ClinicalEntry
 import pe.edu.upc.bovix.health.domain.model.PendingVaccination
 import pe.edu.upc.bovix.health.domain.model.VetAppointment
+import pe.edu.upc.bovix.core.ui.CenteredError
+import pe.edu.upc.bovix.core.ui.CenteredLoader
 import pe.edu.upc.bovix.ui.theme.*
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -557,24 +559,3 @@ private fun formatScheduled(date: LocalDateTime): String {
     return "$dayLabel, ${date.format(timeFmt)}"
 }
 
-@Composable
-private fun CenteredLoader() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = ForestGreen)
-    }
-}
-
-@Composable
-private fun CenteredError(message: String, onRetry: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(message, color = TextPrimary, style = MaterialTheme.typography.bodyLarge)
-        Spacer(Modifier.height(12.dp))
-        Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)) {
-            Text("Reintentar")
-        }
-    }
-}

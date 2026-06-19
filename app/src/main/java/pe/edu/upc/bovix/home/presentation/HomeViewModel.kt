@@ -8,17 +8,19 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import pe.edu.upc.bovix.auth.domain.usecase.GetCurrentUserUseCase
-import pe.edu.upc.bovix.auth.domain.usecase.LogoutUseCase
+import pe.edu.upc.bovix.auth.domain.repository.AuthRepository
+import pe.edu.upc.bovix.cattle.data.local.AnimalDao
 import pe.edu.upc.bovix.core.common.Resource
-import pe.edu.upc.bovix.home.domain.usecase.GetHomeDataUseCase
+import pe.edu.upc.bovix.home.domain.model.HomeData
+import pe.edu.upc.bovix.home.domain.model.HomeStats
+import pe.edu.upc.bovix.home.domain.repository.HomeRepository
 import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val getHomeDataUseCase: GetHomeDataUseCase,
-    private val getCurrentUserUseCase: GetCurrentUserUseCase,
-    private val logoutUseCase: LogoutUseCase
+    private val homeRepository: HomeRepository,
+    private val authRepository: AuthRepository,
+    private val animalDao: AnimalDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -26,23 +28,37 @@ class HomeViewModel @Inject constructor(
 
     init {
         load()
+        observeAnimalStats()
         viewModelScope.launch {
-            val user = getCurrentUserUseCase()
+            val user = authRepository.getCachedUser()
             _uiState.update { it.copy(userEmail = user?.email ?: "") }
+        }
+    }
+
+    private fun observeAnimalStats() {
+        viewModelScope.launch {
+            animalDao.observeAll().collect { animals ->
+                val totalAnimals = animals.size
+                val activeLots = animals.map { it.lot }.filter { it.isNotBlank() }.distinct().size
+                _uiState.update { state ->
+                    val current = state.data
+                    if (current != null) {
+                        state.copy(data = current.copy(stats = current.stats.copy(totalAnimals = totalAnimals, activeLots = activeLots)))
+                    } else if (totalAnimals > 0) {
+                        state.copy(data = HomeData(state.userEmail, HomeStats(totalAnimals, activeLots, 0, 0), null, emptyList()))
+                    } else state
+                }
+            }
         }
     }
 
     fun load() {
         viewModelScope.launch {
-            getHomeDataUseCase().collect { result ->
+            homeRepository.getHomeData().collect { result ->
                 when (result) {
                     is Resource.Loading -> _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-                    is Resource.Success -> _uiState.update {
-                        it.copy(isLoading = false, data = result.data, errorMessage = null)
-                    }
-                    is Resource.Error -> _uiState.update {
-                        it.copy(isLoading = false, errorMessage = result.message)
-                    }
+                    is Resource.Success -> _uiState.update { it.copy(isLoading = false, data = result.data, errorMessage = null) }
+                    is Resource.Error -> _uiState.update { it.copy(isLoading = false, errorMessage = result.message) }
                 }
             }
         }
@@ -53,7 +69,7 @@ class HomeViewModel @Inject constructor(
 
     fun logout() {
         viewModelScope.launch {
-            logoutUseCase()
+            authRepository.logout()
             _uiState.update { it.copy(showProfileSheet = false, loggedOut = true) }
         }
     }

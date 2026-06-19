@@ -4,11 +4,15 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AnimalDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(items: List<AnimalEntity>)
+
+    @Query("SELECT * FROM animals ORDER BY id ASC")
+    fun observeAll(): Flow<List<AnimalEntity>>
 
     @Query("SELECT * FROM animals ORDER BY id ASC")
     suspend fun getAll(): List<AnimalEntity>

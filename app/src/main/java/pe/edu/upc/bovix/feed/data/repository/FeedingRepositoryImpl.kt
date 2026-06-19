@@ -1,8 +1,8 @@
 package pe.edu.upc.bovix.feed.data.repository
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import pe.edu.upc.bovix.core.common.Resource
+import pe.edu.upc.bovix.core.common.resourceFlow
 import pe.edu.upc.bovix.feed.data.local.FeedingDao
 import pe.edu.upc.bovix.feed.data.mapper.toDomain
 import pe.edu.upc.bovix.feed.data.mapper.toEntity
@@ -13,7 +13,6 @@ import pe.edu.upc.bovix.feed.data.remote.dto.UpdateFeedingComponentDto
 import pe.edu.upc.bovix.feed.domain.model.FeedingComponent
 import pe.edu.upc.bovix.feed.domain.model.FeedingPlan
 import pe.edu.upc.bovix.feed.domain.repository.FeedingRepository
-import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,28 +22,23 @@ class FeedingRepositoryImpl @Inject constructor(
     private val dao: FeedingDao
 ) : FeedingRepository {
 
-    override fun getFeedingPlans(): Flow<Resource<List<FeedingPlan>>> = flow {
-        emit(Resource.Loading)
-
-        val cached = loadFromCache()
-        if (cached.isNotEmpty()) emit(Resource.Success(cached))
-
-        try {
+    override fun getFeedingPlans(): Flow<Resource<List<FeedingPlan>>> = resourceFlow(
+        loadCache = { loadFromCache().takeIf { it.isNotEmpty() } },
+        fetch = {
             val remote = api.getFeedingPlans()
+            val existingTimestamps = dao.getPlans().associate { it.id to it.createdAt }
             dao.clearComponents()
             dao.clearPlans()
-            dao.upsertPlans(remote.map { it.toEntity() })
+            dao.upsertPlans(remote.map { dto ->
+                dto.toEntity().copy(createdAt = existingTimestamps[dto.id.toString()] ?: System.currentTimeMillis())
+            })
             remote.forEach { plan ->
                 dao.upsertComponents(plan.components.mapIndexed { i, c -> c.toEntity(plan.id.toString(), i) })
             }
-            emit(Resource.Success(remote.map { it.toDomain() }))
-        } catch (io: IOException) {
-            if (cached.isEmpty()) emit(Resource.Error("Sin conexión", io))
-        } catch (e: Exception) {
-            if (cached.isEmpty())
-                emit(Resource.Error(e.localizedMessage ?: "Error al cargar Alimentación", e))
-        }
-    }
+            remote.map { it.toDomain() }
+        },
+        errorMessage = "Error al cargar Alimentación"
+    )
 
     override suspend fun createPlan(
         lot: String, dailyRationKg: Double, animalCount: Int, components: List<FeedingComponent>

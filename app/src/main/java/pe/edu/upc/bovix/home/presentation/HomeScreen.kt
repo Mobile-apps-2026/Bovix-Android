@@ -26,6 +26,8 @@ import pe.edu.upc.bovix.home.domain.model.HomeActivity
 import pe.edu.upc.bovix.home.domain.model.HomeActivityType
 import pe.edu.upc.bovix.home.domain.model.HomeAlert
 import pe.edu.upc.bovix.home.domain.model.HomeStats
+import pe.edu.upc.bovix.core.ui.CenteredError
+import pe.edu.upc.bovix.core.ui.CenteredLoader
 import pe.edu.upc.bovix.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -318,26 +320,3 @@ private fun ProfileBottomSheet(
     }
 }
 
-@Composable
-private fun CenteredLoader() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = ForestGreen)
-    }
-}
-
-@Composable
-private fun CenteredError(message: String, onRetry: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(Icons.Default.WarningAmber, null, tint = Danger, modifier = Modifier.size(40.dp))
-        Spacer(Modifier.height(8.dp))
-        Text(message, color = TextPrimary, style = MaterialTheme.typography.bodyLarge)
-        Spacer(Modifier.height(12.dp))
-        Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)) {
-            Text("Reintentar")
-        }
-    }
-}

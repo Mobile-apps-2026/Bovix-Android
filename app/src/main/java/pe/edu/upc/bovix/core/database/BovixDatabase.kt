@@ -27,7 +27,7 @@ import pe.edu.upc.bovix.home.data.local.HomeStatsEntity
         FeedingPlanEntity::class,
         FeedingComponentEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class BovixDatabase : RoomDatabase() {

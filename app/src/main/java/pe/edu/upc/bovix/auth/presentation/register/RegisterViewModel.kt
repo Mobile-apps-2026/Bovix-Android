@@ -8,12 +8,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import pe.edu.upc.bovix.auth.domain.usecase.RegisterUseCase
+import pe.edu.upc.bovix.auth.domain.repository.AuthRepository
 import javax.inject.Inject
 
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
-    private val registerUseCase: RegisterUseCase
+    private val repository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RegisterUiState())
@@ -40,8 +40,8 @@ class RegisterViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                val user = registerUseCase(s.fullName.trim(), s.email.trim(), s.password)
-                _uiState.update { it.copy(isLoading = false, registeredUser = user) }
+                repository.register(s.fullName.trim(), s.email.trim(), s.password)
+                _uiState.update { it.copy(isLoading = false, registeredSuccess = true) }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(isLoading = false, errorMessage = e.message ?: "No se pudo crear la cuenta")
@@ -50,5 +50,5 @@ class RegisterViewModel @Inject constructor(
         }
     }
 
-    fun consumeNavigation() = _uiState.update { it.copy(registeredUser = null) }
+    fun consumeSuccess() = _uiState.update { it.copy(registeredSuccess = false) }
 }

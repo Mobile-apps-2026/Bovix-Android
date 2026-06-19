@@ -35,11 +35,20 @@ fun RegisterScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(state.registeredUser) {
-        if (state.registeredUser != null) {
-            viewModel.consumeNavigation()
-            onRegisterSuccess()
-        }
+    if (state.registeredSuccess) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("¡Cuenta creada!") },
+            text = { Text("Tu cuenta fue creada exitosamente. Inicia sesión para continuar.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.consumeSuccess()
+                    onRegisterSuccess()
+                }) {
+                    Text("Ir al login")
+                }
+            }
+        )
     }
 
     Box(

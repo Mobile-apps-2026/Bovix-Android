@@ -33,6 +33,8 @@ import pe.edu.upc.bovix.core.ui.LocalSnackbarHostState
 import pe.edu.upc.bovix.feed.domain.model.ComponentColor
 import pe.edu.upc.bovix.feed.domain.model.FeedingComponent
 import pe.edu.upc.bovix.feed.domain.model.FeedingPlan
+import pe.edu.upc.bovix.core.ui.CenteredError
+import pe.edu.upc.bovix.core.ui.CenteredLoader
 import pe.edu.upc.bovix.ui.theme.*
 
 @Composable
@@ -603,28 +605,6 @@ private fun ComponentBar(c: FeedingComponent) {
                     .clip(RoundedCornerShape(10.dp))
                     .background(tint)
             )
-        }
-    }
-}
-
-@Composable
-private fun CenteredLoader() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = ForestGreen)
-    }
-}
-
-@Composable
-private fun CenteredError(message: String, onRetry: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(message, color = TextPrimary, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(12.dp))
-        Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)) {
-            Text("Reintentar")
         }
     }
 }

@@ -1,7 +1,5 @@
 package pe.edu.upc.bovix.auth.presentation.register
 
-import pe.edu.upc.bovix.auth.domain.model.User
-
 data class RegisterUiState(
     val fullName: String = "",
     val email: String = "",
@@ -9,5 +7,5 @@ data class RegisterUiState(
     val confirmPassword: String = "",
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val registeredUser: User? = null,
+    val registeredSuccess: Boolean = false,
 )

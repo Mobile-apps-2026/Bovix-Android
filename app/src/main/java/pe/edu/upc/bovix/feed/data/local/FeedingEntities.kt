@@ -8,7 +8,8 @@ data class FeedingPlanEntity(
     @PrimaryKey val id: String,
     val lot: String,
     val dailyRationKg: Double,
-    val animalCount: Int
+    val animalCount: Int,
+    val createdAt: Long = System.currentTimeMillis()
 )
 
 @Entity(tableName = "feeding_components")

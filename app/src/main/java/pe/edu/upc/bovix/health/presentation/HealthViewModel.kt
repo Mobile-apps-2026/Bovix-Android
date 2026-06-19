@@ -8,19 +8,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import pe.edu.upc.bovix.cattle.domain.usecase.GetAnimalsUseCase
+import pe.edu.upc.bovix.cattle.data.local.AnimalDao
 import pe.edu.upc.bovix.core.common.Resource
 import pe.edu.upc.bovix.health.domain.model.HealthSummary
 import pe.edu.upc.bovix.health.domain.repository.HealthRepository
-import pe.edu.upc.bovix.health.domain.usecase.GetHealthSummaryUseCase
 import java.time.LocalDateTime
 import javax.inject.Inject
 
 @HiltViewModel
 class HealthViewModel @Inject constructor(
-    private val getHealthSummaryUseCase: GetHealthSummaryUseCase,
-    private val getAnimalsUseCase: GetAnimalsUseCase,
-    private val repository: HealthRepository
+    private val repository: HealthRepository,
+    private val animalDao: AnimalDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HealthUiState())
@@ -33,17 +31,20 @@ class HealthViewModel @Inject constructor(
 
     private fun loadAvailableLots() {
         viewModelScope.launch {
-            getAnimalsUseCase().collect { result ->
-                if (result is Resource.Success) {
-                    _uiState.update { it.copy(availableLots = result.data.lots) }
-                }
+            animalDao.observeAll().collect { animals ->
+                val lots = animals
+                    .map { it.lot }
+                    .filter { it.isNotBlank() }
+                    .distinct()
+                    .sorted()
+                _uiState.update { it.copy(availableLots = lots) }
             }
         }
     }
 
     fun load() {
         viewModelScope.launch {
-            getHealthSummaryUseCase().collect { result ->
+            repository.getHealthSummary().collect { result ->
                 when (result) {
                     is Resource.Loading -> _uiState.update { it.copy(isLoading = true, errorMessage = null) }
                     is Resource.Success -> _uiState.update {

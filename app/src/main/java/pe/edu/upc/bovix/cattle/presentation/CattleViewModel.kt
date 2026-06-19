@@ -12,13 +12,11 @@ import pe.edu.upc.bovix.cattle.domain.model.Animal
 import pe.edu.upc.bovix.cattle.domain.model.AnimalGender
 import pe.edu.upc.bovix.cattle.domain.model.AnimalStatus
 import pe.edu.upc.bovix.cattle.domain.repository.CattleRepository
-import pe.edu.upc.bovix.cattle.domain.usecase.GetAnimalsUseCase
 import pe.edu.upc.bovix.core.common.Resource
 import javax.inject.Inject
 
 @HiltViewModel
 class CattleViewModel @Inject constructor(
-    private val getAnimalsUseCase: GetAnimalsUseCase,
     private val repository: CattleRepository
 ) : ViewModel() {
 
@@ -29,20 +27,13 @@ class CattleViewModel @Inject constructor(
 
     fun load() {
         viewModelScope.launch {
-            getAnimalsUseCase().collect { result ->
+            repository.getCattleData().collect { result ->
                 when (result) {
                     is Resource.Loading -> _uiState.update { it.copy(isLoading = true, errorMessage = null) }
                     is Resource.Success -> _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            animals = result.data.animals,
-                            lots = result.data.lots,
-                            errorMessage = null
-                        )
+                        it.copy(isLoading = false, animals = result.data.animals, lots = result.data.lots, errorMessage = null)
                     }
-                    is Resource.Error -> _uiState.update {
-                        it.copy(isLoading = false, errorMessage = result.message)
-                    }
+                    is Resource.Error -> _uiState.update { it.copy(isLoading = false, errorMessage = result.message) }
                 }
             }
         }
@@ -57,32 +48,16 @@ class CattleViewModel @Inject constructor(
     fun hideAddAnimalDialog() = _uiState.update { it.copy(showAddAnimalDialog = false) }
 
     fun addAnimal(name: String, lot: String, status: AnimalStatus, gender: AnimalGender, weightKg: Int) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(showAddAnimalDialog = false, isLoading = true) }
-            try {
-                repository.addAnimal(name.trim(), lot, status, gender, weightKg)
-                _uiState.update { it.copy(snackbarMessage = "Animal agregado") }
-                load()
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage ?: "Error al agregar animal") }
-            }
-        }
+        _uiState.update { it.copy(showAddAnimalDialog = false, isLoading = true) }
+        launchCrud("Animal agregado") { repository.addAnimal(name.trim(), lot, status, gender, weightKg) }
     }
 
     fun showEditAnimalDialog(animal: Animal) = _uiState.update { it.copy(editingAnimal = animal) }
     fun hideEditAnimalDialog() = _uiState.update { it.copy(editingAnimal = null) }
 
     fun updateAnimal(updated: Animal) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(editingAnimal = null, isLoading = true) }
-            try {
-                repository.updateAnimal(updated)
-                _uiState.update { it.copy(snackbarMessage = "Cambios guardados") }
-                load()
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage ?: "Error al actualizar animal") }
-            }
-        }
+        _uiState.update { it.copy(editingAnimal = null, isLoading = true) }
+        launchCrud("Cambios guardados") { repository.updateAnimal(updated) }
     }
 
     fun requestDeleteAnimal(animal: Animal) = _uiState.update { it.copy(deletingAnimal = animal) }
@@ -90,16 +65,8 @@ class CattleViewModel @Inject constructor(
 
     fun confirmDeleteAnimal() {
         val target = _uiState.value.deletingAnimal ?: return
-        viewModelScope.launch {
-            _uiState.update { it.copy(deletingAnimal = null, isLoading = true) }
-            try {
-                repository.deleteAnimal(target.id)
-                _uiState.update { it.copy(snackbarMessage = "Animal eliminado") }
-                load()
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage ?: "Error al eliminar animal") }
-            }
-        }
+        _uiState.update { it.copy(deletingAnimal = null, isLoading = true) }
+        launchCrud("Animal eliminado") { repository.deleteAnimal(target.id) }
     }
 
     // --- Lotes ---
@@ -110,16 +77,8 @@ class CattleViewModel @Inject constructor(
     fun addLot(name: String) {
         val clean = name.trim().uppercase()
         if (clean.isEmpty()) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(showAddLotDialog = false, isLoading = true) }
-            try {
-                repository.addLot(clean)
-                _uiState.update { it.copy(snackbarMessage = "Lote $clean creado") }
-                load()
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage ?: "Error al crear lote") }
-            }
-        }
+        _uiState.update { it.copy(showAddLotDialog = false, isLoading = true) }
+        launchCrud("Lote $clean creado") { repository.addLot(clean) }
     }
 
     fun requestDeleteLot(lot: String) = _uiState.update { it.copy(deletingLot = lot) }
@@ -127,17 +86,24 @@ class CattleViewModel @Inject constructor(
 
     fun confirmDeleteLot() {
         val lot = _uiState.value.deletingLot ?: return
-        viewModelScope.launch {
-            _uiState.update { it.copy(deletingLot = null, isLoading = true) }
-            try {
-                repository.deleteLot(lot)
-                _uiState.update { it.copy(snackbarMessage = "Lote eliminado", selectedLot = "Todos") }
-                load()
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage ?: "Error al eliminar lote") }
-            }
+        _uiState.update { it.copy(deletingLot = null, isLoading = true) }
+        launchCrud("Lote eliminado") {
+            repository.deleteLot(lot)
+            _uiState.update { it.copy(selectedLot = "Todos") }
         }
     }
 
     fun consumeSnackbar() = _uiState.update { it.copy(snackbarMessage = null) }
+
+    private fun launchCrud(successMsg: String, block: suspend () -> Unit) {
+        viewModelScope.launch {
+            try {
+                block()
+                _uiState.update { it.copy(snackbarMessage = successMsg) }
+                load()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage ?: "Error") }
+            }
+        }
+    }
 }

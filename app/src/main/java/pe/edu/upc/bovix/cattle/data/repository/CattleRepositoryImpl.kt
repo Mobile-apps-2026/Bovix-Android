@@ -32,9 +32,9 @@ class CattleRepositoryImpl @Inject constructor(
         emit(Resource.Loading)
 
         val cached = dao.getAll()
+        val existingTimestamps = cached.associate { it.id to it.createdAt }
         if (cached.isNotEmpty()) {
-            val cachedLots = cached.map { it.lot }.distinct().sorted()
-            emit(Resource.Success(CattleData(cached.map { it.toDomain() }, cachedLots)))
+            emit(Resource.Success(CattleData(cached.map { it.toDomain() }, cached.map { it.lot }.distinct().sorted())))
         }
 
         try {
@@ -43,11 +43,12 @@ class CattleRepositoryImpl @Inject constructor(
             stables.forEach { stableIdMap[it.name] = it.id }
 
             val bovines = api.getBovines()
-            dao.upsertAll(bovines.map { it.toEntity() })
+            dao.clear()
+            dao.upsertAll(bovines.map { dto ->
+                dto.toEntity().copy(createdAt = existingTimestamps[dto.id.toString()] ?: System.currentTimeMillis())
+            })
 
-            val animals = bovines.map { it.toDomain() }
-            val lots = stables.map { it.name }.sorted()
-            emit(Resource.Success(CattleData(animals, lots)))
+            emit(Resource.Success(CattleData(bovines.map { it.toDomain() }, stables.map { it.name }.sorted())))
         } catch (io: IOException) {
             if (cached.isEmpty()) emit(Resource.Error("Sin conexión", io))
         } catch (e: Exception) {

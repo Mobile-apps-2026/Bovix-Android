@@ -70,11 +70,7 @@ fun BovixNavGraph() {
         }
         composable(Routes.REGISTER) {
             RegisterScreen(
-                onRegisterSuccess = {
-                    rootNav.navigate(Routes.MAIN) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                },
+                onRegisterSuccess = { rootNav.popBackStack() },
                 onBackToLogin = { rootNav.popBackStack() }
             )
         }
