@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.edu.upc.bovix.auth.domain.repository.AuthRepository
 import pe.edu.upc.bovix.cattle.data.local.AnimalDao
+import pe.edu.upc.bovix.cattle.domain.repository.CattleRepository
 import pe.edu.upc.bovix.core.common.Resource
 import pe.edu.upc.bovix.feed.data.local.FeedingDao
 import pe.edu.upc.bovix.health.data.local.HealthDao
@@ -27,6 +28,7 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val homeRepository: HomeRepository,
+    private val cattleRepository: CattleRepository,
     private val authRepository: AuthRepository,
     private val animalDao: AnimalDao,
     private val feedingDao: FeedingDao,
@@ -38,10 +40,17 @@ class HomeViewModel @Inject constructor(
 
     init {
         load()
+        preloadCattleData()
         observeLocalData()
         viewModelScope.launch {
             val user = authRepository.getCachedUser()
             _uiState.update { it.copy(userEmail = user?.email ?: "") }
+        }
+    }
+
+    private fun preloadCattleData() {
+        viewModelScope.launch {
+            cattleRepository.getCattleData().collect { /* puebla Room para que observeLocalData tenga datos */ }
         }
     }
 
