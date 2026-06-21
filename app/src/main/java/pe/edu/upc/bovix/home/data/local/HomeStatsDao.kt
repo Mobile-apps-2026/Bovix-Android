@@ -12,4 +12,7 @@ interface HomeStatsDao {
 
     @Query("SELECT * FROM home_stats WHERE id = 1")
     suspend fun get(): HomeStatsEntity?
+
+    @Query("DELETE FROM home_stats")
+    suspend fun clear()
 }

@@ -10,5 +10,6 @@ data class AnimalEntity(
     val lot: String,
     val status: String,
     val gender: String,
-    val weightKg: Int
+    val weightKg: Int,
+    val createdAt: Long = System.currentTimeMillis()
 )

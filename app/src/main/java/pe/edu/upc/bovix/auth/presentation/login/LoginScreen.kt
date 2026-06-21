@@ -1,6 +1,7 @@
 package pe.edu.upc.bovix.auth.presentation.login
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -50,7 +51,7 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Logo
+            // Ícono de la app
             Box(
                 modifier = Modifier
                     .size(72.dp)
@@ -79,7 +80,7 @@ fun LoginScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            // Tarjeta del formulario
+            // Formulario de login
             Surface(
                 color = Color.White.copy(alpha = 0.09f),
                 shape = RoundedCornerShape(16.dp),
@@ -172,7 +173,7 @@ fun LoginScreen(
                             color = MintGreen,
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(start = 2.dp)
+                            modifier = Modifier.padding(start = 2.dp).clickable { onRegisterClick() }
                         )
                     }
                 }

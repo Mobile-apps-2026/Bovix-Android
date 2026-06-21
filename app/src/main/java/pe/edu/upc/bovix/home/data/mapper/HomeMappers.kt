@@ -9,7 +9,6 @@ import pe.edu.upc.bovix.home.domain.model.HomeAlert
 import pe.edu.upc.bovix.home.domain.model.HomeData
 import pe.edu.upc.bovix.home.domain.model.HomeStats
 
-// DTO -> Domain
 fun HomeResponseDto.toDomain(): HomeData = HomeData(
     userName = userName,
     stats = HomeStats(
@@ -30,7 +29,7 @@ fun HomeActivityDto.toDomain(): HomeActivity = HomeActivity(
         .getOrDefault(HomeActivityType.REGISTRATION)
 )
 
-// DTO -> Entity (solo cacheamos las stats principales)
+// Solo cacheamos las stats y la alerta; las actividades no se persisten.
 fun HomeResponseDto.toEntity(): HomeStatsEntity = HomeStatsEntity(
     userName = userName,
     totalAnimals = stats.totalAnimals,
@@ -41,7 +40,7 @@ fun HomeResponseDto.toEntity(): HomeStatsEntity = HomeStatsEntity(
     alertDescription = alert?.description
 )
 
-// Entity -> Domain (sin actividades, solo el "header")
+// Al leer de cache no tenemos actividades, así que va lista vacía.
 fun HomeStatsEntity.toDomain(): HomeData = HomeData(
     userName = userName,
     stats = HomeStats(totalAnimals, activeLots, appointmentsToday, alerts),

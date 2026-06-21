@@ -1,9 +1,9 @@
 package pe.edu.upc.bovix.cattle.domain.model
 
 data class Animal(
-    val id: String,            // ej. "#047"
-    val name: String,          // ej. "Toro Simmental"
-    val lot: String,           // ej. "A"
+    val id: String,
+    val name: String,
+    val lot: String,
     val status: AnimalStatus,
     val gender: AnimalGender,
     val weightKg: Int

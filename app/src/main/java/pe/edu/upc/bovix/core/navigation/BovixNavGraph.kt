@@ -12,9 +12,13 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -26,7 +30,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import pe.edu.upc.bovix.auth.presentation.login.LoginScreen
+import pe.edu.upc.bovix.auth.presentation.register.RegisterScreen
 import pe.edu.upc.bovix.cattle.presentation.CattleScreen
+import pe.edu.upc.bovix.core.ui.LocalSnackbarHostState
+import pe.edu.upc.bovix.health.presentation.HealthScreen
+import pe.edu.upc.bovix.feed.presentation.FeedingScreen
 import pe.edu.upc.bovix.home.presentation.HomeScreen
 import pe.edu.upc.bovix.ui.theme.BorderSoft
 import pe.edu.upc.bovix.ui.theme.CardWhite
@@ -35,12 +43,10 @@ import pe.edu.upc.bovix.ui.theme.TextMute
 
 object Routes {
     const val LOGIN = "login"
+    const val REGISTER = "register"
     const val MAIN = "main"
 }
 
-/**
- * Pestañas de la bottom bar — solo activas dentro del shell "main".
- */
 enum class BottomTab(val route: String, val label: String, val icon: ImageVector) {
     HOME("tab_home", "Inicio", Icons.Default.Home),
     CATTLE("tab_cattle", "Ganado", Icons.Default.Eco),
@@ -48,9 +54,6 @@ enum class BottomTab(val route: String, val label: String, val icon: ImageVector
     FEED("tab_feed", "Alimento", Icons.Default.Restaurant)
 }
 
-/* =====================================================================
- * Root NavGraph: gestiona Login -> Shell principal
- * ===================================================================== */
 @Composable
 fun BovixNavGraph() {
     val rootNav = rememberNavController()
@@ -61,35 +64,63 @@ fun BovixNavGraph() {
                     rootNav.navigate(Routes.MAIN) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
-                }
+                },
+                onRegisterClick = { rootNav.navigate(Routes.REGISTER) }
+            )
+        }
+        composable(Routes.REGISTER) {
+            RegisterScreen(
+                onRegisterSuccess = { rootNav.popBackStack() },
+                onBackToLogin = { rootNav.popBackStack() }
             )
         }
         composable(Routes.MAIN) {
-            MainShell()
+            MainShell(onLogout = {
+                rootNav.navigate(Routes.LOGIN) {
+                    popUpTo(Routes.MAIN) { inclusive = true }
+                }
+            })
         }
     }
 }
 
-/* =====================================================================
- * Shell principal con Bottom Navigation Bar + NavHost anidado
- * ===================================================================== */
 @Composable
-private fun MainShell() {
+private fun MainShell(onLogout: () -> Unit) {
     val tabNav = rememberNavController()
-    Scaffold(
-        bottomBar = { BovixBottomBar(tabNav) },
-        containerColor = CardWhite
-    ) { padding ->
-        NavHost(
-            navController = tabNav,
-            startDestination = BottomTab.HOME.route,
-            modifier = Modifier.padding(padding)
-        ) {
-            composable(BottomTab.HOME.route) { HomeScreen() }
-            composable(BottomTab.CATTLE.route) { CattleScreen() }
-            composable(BottomTab.HEALTH.route) { ComingSoonScreen("Salud") }
-            composable(BottomTab.FEED.route) { ComingSoonScreen("Alimentación") }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            bottomBar = { BovixBottomBar(tabNav) },
+            containerColor = CardWhite
+        ) { padding ->
+            NavHost(
+                navController = tabNav,
+                startDestination = BottomTab.HOME.route,
+                modifier = Modifier.padding(padding)
+            ) {
+                composable(BottomTab.HOME.route) {
+                    HomeScreen(
+                        onLogout = onLogout,
+                        onNavigateToHealth = { tabNav.navigateToTab(BottomTab.HEALTH) },
+                        onNavigateToGanado = { tabNav.navigateToTab(BottomTab.CATTLE) },
+                        onNavigateToFeed = { tabNav.navigateToTab(BottomTab.FEED) }
+                    )
+                }
+                composable(BottomTab.CATTLE.route) { CattleScreen() }
+                composable(BottomTab.HEALTH.route) { HealthScreen() }
+                composable(BottomTab.FEED.route) { FeedingScreen() }
+            }
         }
+    }
+}
+
+private fun NavHostController.navigateToTab(tab: BottomTab) {
+    navigate(tab.route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
     }
 }
 
@@ -108,13 +139,7 @@ private fun BovixBottomBar(navController: NavHostController) {
                 backStackEntry?.destination?.hierarchy?.any { it.route == tab.route } == true
             NavigationBarItem(
                 selected = selected,
-                onClick = {
-                    navController.navigate(tab.route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
+                onClick = { navController.navigateToTab(tab) },
                 icon = { Icon(tab.icon, contentDescription = tab.label) },
                 label = { Text(tab.label) },
                 colors = NavigationBarItemDefaults.colors(
