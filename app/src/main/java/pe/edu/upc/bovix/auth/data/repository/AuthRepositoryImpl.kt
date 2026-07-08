@@ -33,6 +33,10 @@ class AuthRepositoryImpl @Inject constructor(
         emit(Resource.Loading)
         try {
             val response = api.login(LoginRequestDto(email, password))
+            if (response.role != "FARMER") {
+                emit(Resource.Error("Acceso no permitido. Esta app es solo para ganaderos."))
+                return@flow
+            }
             val entity = response.toEntity(email, displayName = null)
             // Limpiar siempre antes de guardar la nueva sesión
             clearAllUserData()
