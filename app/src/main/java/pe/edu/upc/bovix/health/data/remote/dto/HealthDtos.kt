@@ -10,7 +10,9 @@ data class AppointmentResponseDto(
     @SerializedName("scheduledAt") val scheduledAt: String,
     @SerializedName("lot") val lot: String?,
     @SerializedName("status") val status: String,
-    @SerializedName("notes") val notes: String?
+    @SerializedName("notes") val notes: String?,
+    @SerializedName("userId") val userId: Int = 0,
+    @SerializedName("vetId") val vetId: Int = 0
 )
 
 data class CreateAppointmentDto(
@@ -18,7 +20,16 @@ data class CreateAppointmentDto(
     @SerializedName("scheduledAt") val scheduledAt: String,
     @SerializedName("lot") val lot: String?,
     @SerializedName("status") val status: String = "SCHEDULED",
-    @SerializedName("notes") val notes: String? = null
+    @SerializedName("notes") val notes: String? = null,
+    @SerializedName("vetId") val vetId: Int = 0
+)
+
+// ─── Vets ─────────────────────────────────────────────────────────────────────
+
+data class VetDto(
+    @SerializedName("id") val id: Int,
+    @SerializedName("username") val username: String,
+    @SerializedName("email") val email: String
 )
 
 data class UpdateAppointmentDto(

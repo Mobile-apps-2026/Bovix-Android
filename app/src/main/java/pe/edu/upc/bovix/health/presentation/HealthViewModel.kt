@@ -48,7 +48,12 @@ class HealthViewModel @Inject constructor(
                 when (result) {
                     is Resource.Loading -> _uiState.update { it.copy(isLoading = true, errorMessage = null) }
                     is Resource.Success -> _uiState.update {
-                        it.copy(isLoading = false, data = result.data, errorMessage = null)
+                        it.copy(
+                            isLoading = false,
+                            data = result.data,
+                            errorMessage = null,
+                            availableVets = result.data.availableVets
+                        )
                     }
                     is Resource.Error -> _uiState.update {
                         it.copy(isLoading = false, errorMessage = result.message)
@@ -63,11 +68,11 @@ class HealthViewModel @Inject constructor(
     fun showScheduleDialog() = _uiState.update { it.copy(showScheduleDialog = true) }
     fun hideScheduleDialog() = _uiState.update { it.copy(showScheduleDialog = false) }
 
-    fun scheduleAppointment(veterinarianName: String, lots: String, scheduledAt: LocalDateTime) {
+    fun scheduleAppointment(vetId: Int, veterinarianName: String, lots: String, scheduledAt: LocalDateTime) {
         viewModelScope.launch {
             _uiState.update { it.copy(showScheduleDialog = false, isLoading = true) }
             try {
-                repository.scheduleAppointment(veterinarianName.trim(), lots.trim().ifBlank { null }, scheduledAt)
+                repository.scheduleAppointment(veterinarianName.trim(), lots.trim().ifBlank { null }, scheduledAt, vetId)
                 _uiState.update { it.copy(snackbarMessage = "Cita agendada") }
                 load()
             } catch (e: Exception) {

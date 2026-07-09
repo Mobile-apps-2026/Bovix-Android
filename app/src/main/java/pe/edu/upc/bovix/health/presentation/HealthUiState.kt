@@ -10,4 +10,5 @@ data class HealthUiState(
     val confirmCancelAppointment: Boolean = false,
     val snackbarMessage: String? = null,
     val availableLots: List<String> = emptyList(),
+    val availableVets: List<Pair<Int, String>> = emptyList(),
 )

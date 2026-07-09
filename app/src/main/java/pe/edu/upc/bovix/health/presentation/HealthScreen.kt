@@ -70,8 +70,9 @@ fun HealthScreen(viewModel: HealthViewModel = hiltViewModel()) {
         ScheduleAppointmentDialog(
             hasExisting = state.data?.nextAppointment != null,
             availableLots = state.availableLots,
-            onConfirm = { vetName, lots, dateTime ->
-                viewModel.scheduleAppointment(vetName, lots, dateTime)
+            availableVets = state.availableVets,
+            onConfirm = { vetId, vetName, lots, dateTime ->
+                viewModel.scheduleAppointment(vetId, vetName, lots, dateTime)
             },
             onDismiss = viewModel::hideScheduleDialog
         )
@@ -384,10 +385,12 @@ private fun ClinicalHistoryRow(entry: ClinicalEntry) {
 private fun ScheduleAppointmentDialog(
     hasExisting: Boolean,
     availableLots: List<String>,
-    onConfirm: (vetName: String, lots: String, dateTime: LocalDateTime) -> Unit,
+    availableVets: List<Pair<Int, String>>,
+    onConfirm: (vetId: Int, vetName: String, lots: String, dateTime: LocalDateTime) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var vetName by remember { mutableStateOf("") }
+    var selectedVet by remember { mutableStateOf<Pair<Int, String>?>(null) }
+    var vetDropdownExpanded by remember { mutableStateOf(false) }
     var selectedLots by remember { mutableStateOf(emptySet<String>()) }
     var hourStr by remember { mutableStateOf("09") }
     var minuteStr by remember { mutableStateOf("00") }
@@ -402,7 +405,7 @@ private fun ScheduleAppointmentDialog(
     val dateLabel = selectedDate?.format(DateTimeFormatter.ofPattern("d 'de' MMMM yyyy", Locale("es"))) ?: "Seleccionar fecha"
 
     val lotsString = selectedLots.sorted().joinToString(", ")
-    val canSave = vetName.isNotBlank() && selectedLots.isNotEmpty() && selectedDate != null &&
+    val canSave = selectedVet != null && selectedLots.isNotEmpty() && selectedDate != null &&
         hourStr.toIntOrNull() in 0..23 && minuteStr.toIntOrNull() in 0..59
 
     if (showDatePicker) {
@@ -437,14 +440,43 @@ private fun ScheduleAppointmentDialog(
                     }
                 }
 
-                OutlinedTextField(
-                    value = vetName,
-                    onValueChange = { vetName = it },
-                    label = { Text("Nombre del veterinario") },
-                    placeholder = { Text("Dr. Johan Bottger", color = TextMute) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Selector de veterinario
+                ExposedDropdownMenuBox(
+                    expanded = vetDropdownExpanded,
+                    onExpandedChange = { vetDropdownExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedVet?.second ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Veterinario") },
+                        placeholder = { Text("Seleccionar veterinario", color = TextMute) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = vetDropdownExpanded) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = vetDropdownExpanded,
+                        onDismissRequest = { vetDropdownExpanded = false }
+                    ) {
+                        if (availableVets.isEmpty()) {
+                            DropdownMenuItem(
+                                text = { Text("No hay veterinarios registrados", color = TextMute) },
+                                onClick = { vetDropdownExpanded = false }
+                            )
+                        } else {
+                            availableVets.forEach { vet ->
+                                DropdownMenuItem(
+                                    text = { Text(vet.second) },
+                                    onClick = {
+                                        selectedVet = vet
+                                        vetDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
 
                 // Selector de lotes
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -521,12 +553,12 @@ private fun ScheduleAppointmentDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    if (canSave) {
+                    if (canSave && selectedVet != null) {
                         val dt = LocalDateTime.of(
                             selectedDate!!,
                             LocalTime.of(hourStr.toInt(), minuteStr.toInt())
                         )
-                        onConfirm(vetName, lotsString, dt)
+                        onConfirm(selectedVet!!.first, selectedVet!!.second, lotsString, dt)
                     }
                 },
                 enabled = canSave
