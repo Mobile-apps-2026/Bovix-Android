@@ -67,6 +67,8 @@ class HealthViewModel @Inject constructor(
 
     fun showScheduleDialog() = _uiState.update { it.copy(showScheduleDialog = true) }
     fun hideScheduleDialog() = _uiState.update { it.copy(showScheduleDialog = false) }
+    fun showAppointmentDetails() = _uiState.update { it.copy(showAppointmentDetails = true) }
+    fun hideAppointmentDetails() = _uiState.update { it.copy(showAppointmentDetails = false) }
 
     fun scheduleAppointment(vetId: Int, veterinarianName: String, lots: String, scheduledAt: LocalDateTime) {
         viewModelScope.launch {

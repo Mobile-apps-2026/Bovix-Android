@@ -123,8 +123,7 @@ class HomeViewModel @Inject constructor(
     private fun relativeTime(timestamp: Long): String {
         val diffMin = (System.currentTimeMillis() - timestamp) / 60_000
         return when {
-            diffMin < 1    -> "Ahora mismo"
-            diffMin < 60   -> "Hace ${diffMin}min"
+            diffMin < 60   -> "Hoy"
             diffMin < 1440 -> "Hace ${diffMin / 60}h"
             else           -> "Hace ${diffMin / 1440}d"
         }
@@ -135,7 +134,17 @@ class HomeViewModel @Inject constructor(
             homeRepository.getHomeData().collect { result ->
                 when (result) {
                     is Resource.Loading -> _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-                    is Resource.Success -> _uiState.update { it.copy(isLoading = false, data = result.data, errorMessage = null) }
+                    is Resource.Success -> _uiState.update { state ->
+                        state.copy(
+                            isLoading = false,
+                            errorMessage = null,
+                            data = result.data.copy(
+                                activities = result.data.activities.ifEmpty {
+                                    state.data?.activities ?: emptyList()
+                                }
+                            )
+                        )
+                    }
                     is Resource.Error -> _uiState.update { it.copy(isLoading = false, errorMessage = result.message) }
                 }
             }
