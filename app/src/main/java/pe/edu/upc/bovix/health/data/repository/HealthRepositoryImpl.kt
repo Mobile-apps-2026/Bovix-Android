@@ -58,6 +58,9 @@ class HealthRepositoryImpl @Inject constructor(
 
             val availableBovines = bovines.map { it.id to it.name }
 
+            val vets = try { api.getVets() } catch (_: Exception) { emptyList() }
+            val availableVets = vets.map { it.id to it.username }
+
             // Cache to local DB using DTO-level mappers
             dao.clearAppointments()
             nextDto?.let { dao.upsertAppointment(it.toEntity()) }
@@ -70,7 +73,8 @@ class HealthRepositoryImpl @Inject constructor(
                 nextAppointment = nextDto?.toDomain(),
                 pendingVaccinations = pendingVaccinations,
                 clinicalHistory = clinicalHistory,
-                availableBovines = availableBovines
+                availableBovines = availableBovines,
+                availableVets = availableVets
             )))
         } catch (io: IOException) {
             if (!cachedSummary.hasContent()) emit(Resource.Error("Sin conexión", io))
@@ -81,14 +85,15 @@ class HealthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun scheduleAppointment(
-        veterinarianName: String, lot: String?, scheduledAt: LocalDateTime
+        veterinarianName: String, lot: String?, scheduledAt: LocalDateTime, vetId: Int
     ) {
         api.createAppointment(
             CreateAppointmentDto(
                 veterinarianName = veterinarianName,
                 scheduledAt = scheduledAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                 lot = lot,
-                status = AppointmentStatus.SCHEDULED.name
+                status = AppointmentStatus.SCHEDULED.name,
+                vetId = vetId
             )
         )
     }

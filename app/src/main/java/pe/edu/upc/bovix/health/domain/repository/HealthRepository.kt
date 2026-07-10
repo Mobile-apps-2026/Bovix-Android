@@ -8,7 +8,7 @@ import java.time.LocalDateTime
 
 interface HealthRepository {
     fun getHealthSummary(): Flow<Resource<HealthSummary>>
-    suspend fun scheduleAppointment(veterinarianName: String, lot: String?, scheduledAt: LocalDateTime)
+    suspend fun scheduleAppointment(veterinarianName: String, lot: String?, scheduledAt: LocalDateTime, vetId: Int = 0)
     suspend fun cancelAppointment(id: String)
     suspend fun addClinicalEntry(bovineId: Int, diagnosis: String, treatment: String?, severity: AlertSeverity?, veterinarianName: String?)
     suspend fun markVaccineDone(id: String)

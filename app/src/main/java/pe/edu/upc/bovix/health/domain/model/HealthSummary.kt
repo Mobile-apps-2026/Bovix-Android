@@ -6,7 +6,8 @@ data class HealthSummary(
     val nextAppointment: VetAppointment?,
     val pendingVaccinations: List<PendingVaccination>,
     val clinicalHistory: List<ClinicalEntry>,
-    val availableBovines: List<Pair<Int, String>> = emptyList()
+    val availableBovines: List<Pair<Int, String>> = emptyList(),
+    val availableVets: List<Pair<Int, String>> = emptyList()
 )
 
 data class VetAppointment(

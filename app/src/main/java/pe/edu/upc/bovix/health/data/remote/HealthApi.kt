@@ -7,6 +7,7 @@ import pe.edu.upc.bovix.health.data.remote.dto.CreateAppointmentDto
 import pe.edu.upc.bovix.health.data.remote.dto.CreateClinicalRecordDto
 import pe.edu.upc.bovix.health.data.remote.dto.UpdateAppointmentDto
 import pe.edu.upc.bovix.health.data.remote.dto.VaccineResponseDto
+import pe.edu.upc.bovix.health.data.remote.dto.VetDto
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -45,4 +46,8 @@ interface HealthApi {
     // Bovines (for bovine selector in clinical records)
     @GET("bovines")
     suspend fun getBovines(): List<BovineForHealthDto>
+
+    // Vets (for vet selector when scheduling)
+    @GET("user/vets")
+    suspend fun getVets(): List<VetDto>
 }

@@ -37,6 +37,16 @@ import pe.edu.upc.bovix.core.ui.CenteredError
 import pe.edu.upc.bovix.core.ui.CenteredLoader
 import pe.edu.upc.bovix.ui.theme.*
 
+private val DEFAULT_COMPOSITION = listOf(
+    ComponentDraft("d1", "Maíz molido",        "35", ComponentColor.AMBER),
+    ComponentDraft("d2", "Heno de alfalfa",    "25", ComponentColor.MINT),
+    ComponentDraft("d3", "Torta de soya",      "18", ComponentColor.GREEN),
+    ComponentDraft("d4", "Salvado de trigo",   "12", ComponentColor.SKY),
+    ComponentDraft("d5", "Melaza de caña",      "5", ComponentColor.AMBER),
+    ComponentDraft("d6", "Sal mineral",         "3", ComponentColor.SKY),
+    ComponentDraft("d7", "Núcleo vitamínico",   "2", ComponentColor.MINT),
+)
+
 @Composable
 fun FeedingScreen(viewModel: FeedingViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -253,15 +263,17 @@ private fun PlanFormDialog(
     onConfirm: (lot: String, dailyRationKg: Double, animalCount: Int, components: List<FeedingComponent>) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val isCreating = initial == null
     var lot by remember { mutableStateOf(initial?.lot ?: "") }
     var rationStr by remember { mutableStateOf(initial?.dailyRationKg?.let { formatKg(it) } ?: "") }
     var countStr by remember { mutableStateOf(initial?.animalCount?.toString() ?: "") }
     var components by remember {
         mutableStateOf(
             initial?.components?.map { ComponentDraft(it.id, it.name, it.percentage.toString(), it.color) }
-                ?: listOf(ComponentDraft(newId(), "", "100", ComponentColor.MINT))
+                ?: DEFAULT_COMPOSITION
         )
     }
+    var customizing by remember { mutableStateOf(!isCreating) }
     var lotDropdownExpanded by remember { mutableStateOf(false) }
 
     val totalPct = components.sumOf { it.percentage.toIntOrNull() ?: 0 }
@@ -400,32 +412,101 @@ private fun PlanFormDialog(
                         )
                     }
 
-                    // Filas de componentes
-                    components.forEachIndexed { index, comp ->
-                        ComponentFormRow(
-                            draft = comp,
-                            onNameChange = { components = components.update(index) { copy(name = it) } },
-                            onPercentageChange = { components = components.update(index) { copy(percentage = it) } },
-                            onColorChange = { components = components.update(index) { copy(color = it) } },
-                            onRemove = if (components.size > 1) ({
-                                components = components.filterIndexed { i, _ -> i != index }
-                            }) else null
-                        )
-                    }
-
-                    // Botón agregar componente
-                    OutlinedButton(
-                        onClick = {
-                            components = components + ComponentDraft(newId(), "", "0", nextColor(components.size))
-                        },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = ForestGreen),
-                        border = BorderStroke(1.dp, MintGreen),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Agregar componente")
+                    if (!customizing) {
+                        // Vista previa de la composición sugerida
+                        Surface(
+                            color = BgPrimary,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, BorderSoft),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                components.forEach { comp ->
+                                    val tint = comp.color.toColor()
+                                    Column {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .clip(CircleShape)
+                                                    .background(tint)
+                                            )
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(
+                                                comp.name,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = TextPrimary,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Text(
+                                                "${comp.percentage}%",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = TextMute,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                        Spacer(Modifier.height(4.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(5.dp)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(BorderSoft)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth((comp.percentage.toIntOrNull() ?: 0) / 100f)
+                                                    .fillMaxHeight()
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .background(tint)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        TextButton(
+                            onClick = { customizing = true },
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Text(
+                                "Personalizar composición",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextMid
+                            )
+                        }
+                    } else {
+                        // Modo edición: filas de componentes
+                        components.forEachIndexed { index, comp ->
+                            ComponentFormRow(
+                                draft = comp,
+                                onNameChange = { components = components.update(index) { copy(name = it) } },
+                                onPercentageChange = { components = components.update(index) { copy(percentage = it) } },
+                                onColorChange = { components = components.update(index) { copy(color = it) } },
+                                onRemove = if (components.size > 1) ({
+                                    components = components.filterIndexed { i, _ -> i != index }
+                                }) else null
+                            )
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                components = components + ComponentDraft(newId(), "", "0", nextColor(components.size))
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = ForestGreen),
+                            border = BorderStroke(1.dp, MintGreen),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Agregar componente")
+                        }
                     }
                 }
 
@@ -441,7 +522,7 @@ private fun PlanFormDialog(
                             if (canSave) {
                                 val ration = rationStr.toDouble()
                                 val count = countStr.toInt()
-                                val finalComponents = components.mapIndexed { i, d ->
+                                val finalComponents = components.map { d ->
                                     FeedingComponent(
                                         id = d.id,
                                         name = d.name.trim(),

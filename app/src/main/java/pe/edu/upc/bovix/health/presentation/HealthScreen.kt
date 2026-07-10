@@ -25,6 +25,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.edu.upc.bovix.core.ui.LocalSnackbarHostState
 import pe.edu.upc.bovix.health.domain.model.AlertSeverity
+import pe.edu.upc.bovix.health.domain.model.AppointmentStatus
 import pe.edu.upc.bovix.health.domain.model.ClinicalEntry
 import pe.edu.upc.bovix.health.domain.model.PendingVaccination
 import pe.edu.upc.bovix.health.domain.model.VetAppointment
@@ -60,7 +61,8 @@ fun HealthScreen(viewModel: HealthViewModel = hiltViewModel()) {
                 pending = state.data?.pendingVaccinations ?: emptyList(),
                 history = state.data?.clinicalHistory ?: emptyList(),
                 onSchedule = viewModel::showScheduleDialog,
-                onCancelAppointment = viewModel::requestCancelAppointment
+                onCancelAppointment = viewModel::requestCancelAppointment,
+                onViewAppointmentDetails = viewModel::showAppointmentDetails
             )
         }
     }
@@ -70,11 +72,19 @@ fun HealthScreen(viewModel: HealthViewModel = hiltViewModel()) {
         ScheduleAppointmentDialog(
             hasExisting = state.data?.nextAppointment != null,
             availableLots = state.availableLots,
-            onConfirm = { vetName, lots, dateTime ->
-                viewModel.scheduleAppointment(vetName, lots, dateTime)
+            availableVets = state.availableVets,
+            onConfirm = { vetId, vetName, lots, dateTime ->
+                viewModel.scheduleAppointment(vetId, vetName, lots, dateTime)
             },
             onDismiss = viewModel::hideScheduleDialog
         )
+    }
+
+    // Diálogo: detalles de cita
+    state.data?.nextAppointment?.let { appt ->
+        if (state.showAppointmentDetails) {
+            AppointmentDetailsDialog(appointment = appt, onDismiss = viewModel::hideAppointmentDetails)
+        }
     }
 
     // Diálogo: confirmar cancelación de cita
@@ -103,7 +113,8 @@ private fun HealthContent(
     pending: List<PendingVaccination>,
     history: List<ClinicalEntry>,
     onSchedule: () -> Unit,
-    onCancelAppointment: () -> Unit
+    onCancelAppointment: () -> Unit,
+    onViewAppointmentDetails: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -134,7 +145,7 @@ private fun HealthContent(
 
         // Próxima cita
         if (appointment != null) {
-            NextAppointmentCard(appointment, onCancelAppointment)
+            NextAppointmentCard(appointment, onCancelAppointment, onViewAppointmentDetails)
         } else {
             NoAppointmentBanner(onSchedule)
         }
@@ -171,7 +182,7 @@ private fun HealthContent(
 }
 
 @Composable
-private fun NextAppointmentCard(appt: VetAppointment, onCancel: () -> Unit) {
+private fun NextAppointmentCard(appt: VetAppointment, onCancel: () -> Unit, onViewDetails: () -> Unit = {}) {
     Surface(
         color = Sky,
         shape = RoundedCornerShape(16.dp),
@@ -219,6 +230,7 @@ private fun NextAppointmentCard(appt: VetAppointment, onCancel: () -> Unit) {
                 Surface(
                     color = Color.White,
                     shape = RoundedCornerShape(8.dp),
+                    onClick = onViewDetails,
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
@@ -377,6 +389,67 @@ private fun ClinicalHistoryRow(entry: ClinicalEntry) {
     }
 }
 
+// ─── Diálogo: detalles de cita ───────────────────────────────────────────────
+
+@Composable
+private fun AppointmentDetailsDialog(appointment: VetAppointment, onDismiss: () -> Unit) {
+    val statusLabel = when (appointment.status) {
+        AppointmentStatus.SCHEDULED  -> "Agendada"
+        AppointmentStatus.COMPLETED  -> "Completada"
+        AppointmentStatus.CANCELLED  -> "Cancelada"
+    }
+    val statusColor = when (appointment.status) {
+        AppointmentStatus.SCHEDULED  -> Sky
+        AppointmentStatus.COMPLETED  -> MediumGreen
+        AppointmentStatus.CANCELLED  -> Danger
+    }
+    val dateFmt = DateTimeFormatter.ofPattern("d 'de' MMMM yyyy", Locale("es"))
+    val timeFmt = DateTimeFormatter.ofPattern("h:mm a", Locale("es"))
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Detalles de la cita", style = MaterialTheme.typography.titleMedium) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                DetailRow(label = "Veterinario", value = appointment.veterinarianName)
+                DetailRow(label = "Fecha", value = appointment.scheduledAt.format(dateFmt))
+                DetailRow(label = "Hora", value = appointment.scheduledAt.format(timeFmt))
+                DetailRow(label = "Lotes", value = appointment.lots.ifBlank { "—" })
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Estado", style = MaterialTheme.typography.bodySmall, color = TextMute)
+                    Surface(color = statusColor.copy(alpha = 0.12f), shape = RoundedCornerShape(8.dp)) {
+                        Text(
+                            statusLabel,
+                            color = statusColor,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Cerrar") }
+        }
+    )
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Row(
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = TextMute)
+        Text(value, style = MaterialTheme.typography.bodySmall, color = TextPrimary, fontWeight = FontWeight.Medium)
+    }
+}
+
 // ─── Diálogo: agendar cita ────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -384,11 +457,13 @@ private fun ClinicalHistoryRow(entry: ClinicalEntry) {
 private fun ScheduleAppointmentDialog(
     hasExisting: Boolean,
     availableLots: List<String>,
-    onConfirm: (vetName: String, lots: String, dateTime: LocalDateTime) -> Unit,
+    availableVets: List<Pair<Int, String>>,
+    onConfirm: (vetId: Int, vetName: String, lots: String, dateTime: LocalDateTime) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var vetName by remember { mutableStateOf("") }
-    var selectedLots by remember { mutableStateOf(emptySet<String>()) }
+    var selectedVet by remember { mutableStateOf<Pair<Int, String>?>(null) }
+    var vetDropdownExpanded by remember { mutableStateOf(false) }
+    var selectedLots by remember { mutableStateOf(availableLots.toSet()) }
     var hourStr by remember { mutableStateOf("09") }
     var minuteStr by remember { mutableStateOf("00") }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -402,7 +477,7 @@ private fun ScheduleAppointmentDialog(
     val dateLabel = selectedDate?.format(DateTimeFormatter.ofPattern("d 'de' MMMM yyyy", Locale("es"))) ?: "Seleccionar fecha"
 
     val lotsString = selectedLots.sorted().joinToString(", ")
-    val canSave = vetName.isNotBlank() && selectedLots.isNotEmpty() && selectedDate != null &&
+    val canSave = selectedVet != null && selectedLots.isNotEmpty() && selectedDate != null &&
         hourStr.toIntOrNull() in 0..23 && minuteStr.toIntOrNull() in 0..59
 
     if (showDatePicker) {
@@ -437,14 +512,43 @@ private fun ScheduleAppointmentDialog(
                     }
                 }
 
-                OutlinedTextField(
-                    value = vetName,
-                    onValueChange = { vetName = it },
-                    label = { Text("Nombre del veterinario") },
-                    placeholder = { Text("Dr. Johan Bottger", color = TextMute) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Selector de veterinario
+                ExposedDropdownMenuBox(
+                    expanded = vetDropdownExpanded,
+                    onExpandedChange = { vetDropdownExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedVet?.second ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Veterinario") },
+                        placeholder = { Text("Seleccionar veterinario", color = TextMute) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = vetDropdownExpanded) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = vetDropdownExpanded,
+                        onDismissRequest = { vetDropdownExpanded = false }
+                    ) {
+                        if (availableVets.isEmpty()) {
+                            DropdownMenuItem(
+                                text = { Text("No hay veterinarios registrados", color = TextMute) },
+                                onClick = { vetDropdownExpanded = false }
+                            )
+                        } else {
+                            availableVets.forEach { vet ->
+                                DropdownMenuItem(
+                                    text = { Text(vet.second) },
+                                    onClick = {
+                                        selectedVet = vet
+                                        vetDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
 
                 // Selector de lotes
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -521,12 +625,12 @@ private fun ScheduleAppointmentDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    if (canSave) {
+                    if (canSave && selectedVet != null) {
                         val dt = LocalDateTime.of(
                             selectedDate!!,
                             LocalTime.of(hourStr.toInt(), minuteStr.toInt())
                         )
-                        onConfirm(vetName, lotsString, dt)
+                        onConfirm(selectedVet!!.first, selectedVet!!.second, lotsString, dt)
                     }
                 },
                 enabled = canSave
